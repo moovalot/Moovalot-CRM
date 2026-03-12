@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Moovalot CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* ── RESET & BASE ── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0d0e14;--surface:#16171f;--surface2:#1e1f2a;--surface3:#252633;
+  --border:#2a2b3a;--border2:#333447;
+  --text:#e8e8f0;--text2:#9ca3b0;--text3:#6b7280;
+  --green:#22c55e;--green-dim:#052e16;
+  --blue:#3b82f6;--blue-dim:#0c1b3a;
+  --amber:#f59e0b;--amber-dim:#1a1000;
+  --red:#ef4444;--red-dim:#1f0808;
+  --purple:#a855f7;--purple-dim:#1a0a2e;
+  --pink:#ec4899;--pink-dim:#2a0a1e;
+  --panel-w:380px;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);}
+
+/* ── LAYOUT ── */
+#app{display:flex;height:100vh;width:100vw;}
+#map-wrap{flex:1;position:relative;min-width:0;}
+#map{width:100%;height:100%;}
+
+/* ── TOP NAV BAR (mobile) ── */
+#topbar{
+  display:none;position:fixed;top:0;left:0;right:0;z-index:2000;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  height:52px;align-items:center;padding:0 12px;gap:10px;
+}
+#topbar-title{font-family:'Space Mono',monospace;font-size:13px;color:#fff;letter-spacing:1px;flex:1;}
+#topbar-crm-btn{
+  background:var(--blue-dim);border:1px solid var(--blue);color:var(--blue);
+  border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+}
+#topbar-map-btn{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text2);
+  border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;display:none;
+}
+
+/* ── CRM PANEL ── */
+#crm-panel{
+  width:var(--panel-w);flex-shrink:0;
+  background:var(--surface);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  transition:transform 0.3s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── CRM HEADER ── */
+#crm-header{
+  padding:16px 16px 0;flex-shrink:0;
+  background:linear-gradient(180deg,var(--surface) 80%,transparent);
+}
+#crm-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+#crm-title{font-family:'Space Mono',monospace;font-size:14px;letter-spacing:1px;color:#fff;}
+#crm-date{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace;}
+
+/* ── ALERT BANNER ── */
+#alert-banner{
+  margin:0 0 12px;border-radius:10px;overflow:hidden;
+  background:var(--red-dim);border:1px solid #ef444440;
+  display:none;
+}
+#alert-banner.show{display:block;}
+#alert-inner{padding:10px 12px;}
+#alert-title{font-size:11px;font-weight:700;color:var(--red);letter-spacing:.5px;margin-bottom:4px;}
+.alert-item{font-size:12px;color:#fca5a5;padding:2px 0;display:flex;justify-content:space-between;}
+.alert-item span{color:var(--text3);font-size:11px;}
+
+/* ── CRM TABS ── */
+#crm-tabs{display:flex;gap:4px;margin-bottom:12px;}
+.crm-tab{
+  flex:1;padding:8px 4px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text3);font-size:12px;font-weight:600;
+  cursor:pointer;text-align:center;transition:all .15s;
+}
+.crm-tab.active{background:var(--blue-dim);border-color:var(--blue);color:var(--blue);}
+
+/* ── SEARCH ── */
+#crm-search-wrap{position:relative;margin-bottom:10px;}
+#crm-search{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:9px;padding:9px 12px 9px 34px;color:var(--text);
+  font-family:'DM Sans',sans-serif;font-size:13px;outline:none;
+}
+#crm-search:focus{border-color:var(--blue);}
+#crm-search::placeholder{color:var(--text3);}
+#crm-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none;}
+
+/* ── CRM BODY (scrollable) ── */
+#crm-body{flex:1;overflow-y:auto;padding:0 16px 80px;-webkit-overflow-scrolling:touch;}
+#crm-body::-webkit-scrollbar{width:4px;}
+#crm-body::-webkit-scrollbar-track{background:transparent;}
+#crm-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* ── SECTION HEADERS ── */
+.section-header{
+  font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);
+  text-transform:uppercase;padding:14px 0 6px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.section-count{
+  background:var(--surface3);border-radius:10px;padding:2px 7px;
+  font-size:10px;color:var(--text2);font-family:'Space Mono',monospace;
+}
+
+/* ── CRM CARDS ── */
+.crm-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  margin-bottom:8px;overflow:hidden;cursor:pointer;
+  transition:border-color .15s,transform .1s;
+}
+.crm-card:active{transform:scale(.99);}
+.crm-card.selected{border-color:var(--blue);}
+.crm-card-header{padding:11px 13px 8px;display:flex;align-items:flex-start;gap:9px;}
+.crm-card-icon{
+  width:32px;height:32px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:15px;flex-shrink:0;margin-top:1px;
+}
+.crm-card-icon.storage{background:#3b82f618;border:1px solid #3b82f630;}
+.crm-card-icon.auto{background:#a855f718;border:1px solid #a855f730;}
+.crm-card-icon.apt{background:#ec489918;border:1px solid #ec489930;}
+.crm-card-main{flex:1;min-width:0;}
+.crm-card-name{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crm-card-addr{font-size:11px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crm-card-badges{display:flex;gap:5px;flex-wrap:wrap;padding:0 13px 10px 54px;}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;}
+.badge-green{background:#22c55e18;color:#4ade80;border:1px solid #22c55e30;}
+.badge-amber{background:#f59e0b18;color:#fbbf24;border:1px solid #f59e0b30;}
+.badge-red{background:#ef444418;color:#f87171;border:1px solid #ef444430;}
+.badge-blue{background:#3b82f618;color:#60a5fa;border:1px solid #3b82f630;}
+.badge-gray{background:#6b728018;color:#9ca3af;border:1px solid #6b728030;}
+
+/* ── EXPANDED CARD DETAIL ── */
+.crm-card-detail{
+  border-top:1px solid var(--border);padding:12px 13px;
+  background:var(--surface3);display:none;
+}
+.crm-card-detail.open{display:block;}
+.detail-row{display:flex;gap:8px;margin-bottom:8px;font-size:12px;}
+.detail-label{color:var(--text3);min-width:70px;flex-shrink:0;}
+.detail-val{color:var(--text);flex:1;}
+.detail-divider{border:none;border-top:1px solid var(--border);margin:10px 0;}
+
+/* ── VISIT LOG ── */
+.visit-log{margin-bottom:10px;}
+.visit-log-title{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;}
+.visit-entry{
+  background:var(--surface2);border:1px solid var(--border);border-radius:7px;
+  padding:7px 10px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:flex-start;
+}
+.visit-entry-date{font-size:11px;font-weight:600;color:var(--blue);font-family:'Space Mono',monospace;}
+.visit-entry-note{font-size:11px;color:var(--text2);margin-top:2px;}
+.visit-entry-delete{color:var(--text3);font-size:14px;cursor:pointer;padding:0 2px;line-height:1;}
+.visit-entry-delete:hover{color:var(--red);}
+
+/* ── LOG VISIT FORM ── */
+.log-visit-section{margin-top:8px;}
+.log-visit-toggle{
+  width:100%;background:var(--green-dim);border:1px solid #22c55e40;
+  color:var(--green);border-radius:8px;padding:8px;font-size:12px;font-weight:600;
+  cursor:pointer;text-align:center;font-family:'DM Sans',sans-serif;
+}
+.log-visit-form{display:none;margin-top:8px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px;}
+.log-visit-form.open{display:block;}
+.form-row{margin-bottom:8px;}
+.form-label{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;display:block;}
+.form-input{
+  width:100%;background:var(--surface);border:1px solid var(--border);border-radius:7px;
+  padding:7px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;
+}
+.form-input:focus{border-color:var(--blue);}
+.form-input::placeholder{color:var(--text3);}
+textarea.form-input{resize:none;min-height:56px;}
+.form-actions{display:flex;gap:6px;margin-top:4px;}
+.btn-save{
+  flex:1;background:var(--blue);color:#fff;border:none;border-radius:7px;
+  padding:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;
+}
+.btn-cancel{
+  background:var(--surface3);color:var(--text2);border:1px solid var(--border);border-radius:7px;
+  padding:8px 12px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;
+}
+.map-btn{
+  width:100%;background:var(--surface3);border:1px solid var(--border);color:var(--text2);
+  border-radius:8px;padding:8px;font-size:12px;font-weight:500;cursor:pointer;margin-top:6px;
+  font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.map-btn:hover{border-color:var(--blue);color:var(--blue);}
+
+/* ── UNVISITED CARD (targets list) ── */
+.target-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  margin-bottom:8px;overflow:hidden;cursor:pointer;transition:border-color .15s;
+}
+.target-card:active{transform:scale(.99);}
+.target-card.selected{border-color:var(--amber);}
+.target-card-header{padding:11px 13px;display:flex;align-items:center;gap:9px;}
+.target-card-info{flex:1;min-width:0;}
+.target-card-name{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.target-card-addr{font-size:11px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.target-card-rating{
+  font-family:'Space Mono',monospace;font-size:12px;color:var(--amber);
+  flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+}
+.target-card-nearest{font-size:10px;color:var(--green);}
+.target-card-detail{border-top:1px solid var(--border);padding:10px 13px;background:var(--surface3);display:none;}
+.target-card-detail.open{display:block;}
+
+/* ── STATS STRIP ── */
+#stats-strip{
+  position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+  z-index:500;background:rgba(22,23,31,.92);backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:12px;
+  padding:10px 20px;display:flex;gap:24px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;
+}
+.stat{text-align:center;}
+.stat-num{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;}
+.stat-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+.stat-num.green{color:var(--green);}
+.stat-num.blue{color:var(--blue);}
+.stat-num.amber{color:var(--amber);}
+.stat-num.red{color:var(--red);}
+
+/* ── MAP CONTROLS ── */
+#map-search-wrap{position:absolute;top:16px;left:16px;z-index:500;}
+#map-search{
+  background:rgba(22,23,31,.92);border:1px solid var(--border);border-radius:10px;
+  padding:9px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;
+  width:220px;outline:none;backdrop-filter:blur(20px);
+}
+#map-search::placeholder{color:var(--text3);}
+#map-search:focus{border-color:var(--blue);}
+
+#radius-wrap{position:absolute;top:52px;left:16px;z-index:500;display:flex;gap:6px;}
+.rbtn{
+  background:rgba(22,23,31,.92);border:1px solid var(--border);border-radius:8px;
+  padding:5px 10px;color:var(--text3);font-size:11px;cursor:pointer;
+  backdrop-filter:blur(20px);font-family:'DM Sans',sans-serif;
+}
+.rbtn.active{background:#3b82f618;border-color:var(--blue);color:var(--blue);}
+
+/* ── MAP LEGEND ── */
+#legend{
+  position:absolute;top:16px;right:16px;z-index:500;
+  background:rgba(22,23,31,.92);backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:14px;padding:16px 18px;
+  min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.5);
+}
+#legend h2{font-family:'Space Mono',monospace;font-size:13px;letter-spacing:1px;color:#fff;margin-bottom:2px;}
+#legend .subtitle{font-size:10px;color:var(--text3);margin-bottom:12px;font-family:'Space Mono',monospace;}
+.leg-row{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;transition:opacity .2s;}
+.leg-row.dimmed{opacity:.25;}
+.leg-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.leg-label{font-size:12px;font-weight:500;}
+.leg-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);margin-left:auto;}
+.leg-divider{border:none;border-top:1px solid var(--border);margin:7px 0;}
+
+/* ── MODAL (log visit) ── */
+#modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:3000;
+  display:none;align-items:flex-end;justify-content:center;
+}
+#modal-overlay.open{display:flex;}
+#modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;
+  padding:20px 20px 32px;width:100%;max-width:480px;
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+#modal h3{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px;}
+#modal .modal-sub{font-size:12px;color:var(--text3);margin-bottom:16px;}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px;}
+
+/* ── LEAFLET POPUP OVERRIDES ── */
+.leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border-radius:12px;border:1px solid var(--border);box-shadow:0 8px 32px rgba(0,0,0,.6);}
+.leaflet-popup-tip{background:var(--surface);}
+.leaflet-popup-content{margin:12px 16px;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.5;}
+.leaflet-popup-content b{color:#fff;font-weight:700;}
+.pop-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-top:4px;}
+.pop-addr{color:var(--text3);font-size:11px;margin-top:2px;}
+.pop-contact{color:#a78bfa;font-size:11px;margin-top:3px;}
+.pop-rating{color:var(--amber);font-size:11px;margin-top:3px;}
+.pop-nearest{color:var(--green);font-size:10px;margin-top:3px;}
+.pop-followup{font-size:11px;margin-top:3px;}
+.pop-btn{
+  display:block;margin-top:8px;background:var(--blue-dim);border:1px solid var(--blue);
+  color:var(--blue);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;
+  cursor:pointer;text-align:center;font-family:'DM Sans',sans-serif;width:100%;
+}
+.leaflet-popup-close-button{color:var(--text3)!important;font-size:18px!important;padding:6px 8px!important;}
+.leaflet-control-zoom a{background:rgba(22,23,31,.92)!important;color:var(--text)!important;border-color:var(--border)!important;}
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width:768px){
+  #topbar{display:flex;}
+  #app{flex-direction:column;padding-top:52px;}
+  #map-wrap{height:100%;width:100%;}
+  #legend{display:none;}
+  #map-search-wrap{top:8px;left:8px;}
+  #map-search{width:180px;font-size:12px;padding:8px 12px;}
+  #radius-wrap{top:46px;left:8px;}
+  #stats-strip{gap:16px;padding:8px 14px;bottom:10px;}
+  .stat-num{font-size:15px;}
+  #crm-panel{
+    position:fixed;inset:52px 0 0 0;width:100%;z-index:1500;
+    transform:translateX(100%);border-left:none;border-top:1px solid var(--border);
+  }
+  #crm-panel.mobile-open{transform:translateX(0);}
+  #topbar-crm-btn{display:block;}
+}
+@media (min-width:769px){
+  #topbar{display:none;}
+  #crm-panel{transform:none!important;}
+}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-state .es-icon{font-size:32px;margin-bottom:8px;}
+.empty-state p{font-size:13px;}
+
+/* ── SORT / FILTER ROW ── */
+.filter-row{display:flex;gap:5px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px;}
+.filter-row::-webkit-scrollbar{display:none;}
+.filter-chip{
+  flex-shrink:0;padding:5px 10px;border-radius:20px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text3);font-size:11px;font-weight:600;cursor:pointer;
+}
+.filter-chip.active{background:var(--blue-dim);border-color:var(--blue);color:var(--blue);}
+</style>
+</head>
+<body>
+
+<!-- MOBILE TOP BAR -->
+<div id="topbar">
+  <span id="topbar-title">🐄 MOOVALOT</span>
+  <button id="topbar-map-btn" onclick="showMobileMap()">← Map</button>
+  <button id="topbar-crm-btn" onclick="showMobileCRM()">CRM ▶</button>
+</div>
+
+<div id="app">
+
+  <!-- MAP SIDE -->
+  <div id="map-wrap">
+    <div id="map"></div>
+
+    <!-- Map Search -->
+    <div id="map-search-wrap">
+      <input id="map-search" placeholder="🔍 Search map..." oninput="filterMapMarkers(this.value)">
+    </div>
+
+    <!-- Radius Toggle -->
+    <div id="radius-wrap">
+      <button class="rbtn active" onclick="setRadius(5)" data-mi="5">5 mi</button>
+      <button class="rbtn" onclick="setRadius(3)" data-mi="3">3 mi</button>
+      <button class="rbtn" onclick="setRadius(0)" data-mi="0">Off</button>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+      <h2>MOOVALOT</h2>
+      <div class="subtitle">DISTRIBUTION MAP</div>
+      <div class="leg-row" onclick="toggleLayer('corralActive')" id="leg-corralActive">
+        <div class="leg-icon" style="background:#22c55e22;border:2px solid var(--green);">🐄</div>
+        <span class="leg-label">Active Corrals</span><span class="leg-count" id="lc-corralActive"></span>
+      </div>
+      <div class="leg-row" onclick="toggleLayer('corralInactive')" id="leg-corralInactive">
+        <div class="leg-icon" style="background:#6b728022;border:2px solid #6b7280;">⊘</div>
+        <span class="leg-label">Inactive Corrals</span><span class="leg-count" id="lc-corralInactive"></span>
+      </div>
+      <div class="leg-divider"></div>
+      <div class="leg-row" onclick="toggleLayer('visited')" id="leg-visited">
+        <div class="leg-icon" style="background:#3b82f622;border:2px solid var(--blue);">✓</div>
+        <span class="leg-label">Visited Partners</span><span class="leg-count" id="lc-visited"></span>
+      </div>
+      <div class="leg-row" onclick="toggleLayer('auto')" id="leg-auto">
+        <div class="leg-icon" style="background:#a855f722;border:2px solid var(--purple);">🔧</div>
+        <span class="leg-label">Auto Parts</span><span class="leg-count" id="lc-auto"></span>
+      </div>
+      <div class="leg-row" onclick="toggleLayer('apt')" id="leg-apt">
+        <div class="leg-icon" style="background:#ec489922;border:2px solid var(--pink);">🏠</div>
+        <span class="leg-label">Apartments</span><span class="leg-count" id="lc-apt"></span>
+      </div>
+      <div class="leg-divider"></div>
+      <div class="leg-row" onclick="toggleLayer('unvisited')" id="leg-unvisited">
+        <div class="leg-icon" style="background:#f59e0b22;border:2px solid var(--amber);">★</div>
+        <span class="leg-label">Not Visited</span><span class="leg-count" id="lc-unvisited"></span>
+      </div>
+    </div>
+
+    <!-- Stats Strip -->
+    <div id="stats-strip">
+      <div class="stat"><div class="stat-num green" id="s-corrals">0</div><div class="stat-label">Corrals</div></div>
+      <div class="stat"><div class="stat-num blue" id="s-visited">0</div><div class="stat-label">Visited</div></div>
+      <div class="stat"><div class="stat-num amber" id="s-unvisited">0</div><div class="stat-label">To Visit</div></div>
+      <div class="stat"><div class="stat-num red" id="s-overdue">0</div><div class="stat-label">Overdue</div></div>
+    </div>
+  </div>
+
+  <!-- CRM PANEL -->
+  <div id="crm-panel">
+    <div id="crm-header">
+      <div id="crm-header-top">
+        <span id="crm-title">📋 CRM</span>
+        <span id="crm-date"></span>
+      </div>
+
+      <!-- Alert Banner -->
+      <div id="alert-banner">
+        <div id="alert-inner">
+          <div id="alert-title">⚠️ FOLLOW-UPS DUE</div>
+          <div id="alert-list"></div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div id="crm-tabs">
+        <div class="crm-tab active" onclick="switchTab('visited')" id="tab-visited">✓ Partners</div>
+        <div class="crm-tab" onclick="switchTab('targets')" id="tab-targets">★ Targets</div>
+      </div>
+
+      <!-- Search -->
+      <div id="crm-search-wrap">
+        <span id="crm-search-icon">🔍</span>
+        <input id="crm-search" placeholder="Search..." oninput="filterCRM(this.value)">
+      </div>
+    </div>
+
+    <div id="crm-body">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- LOG VISIT MODAL (mobile bottom sheet) -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <div class="modal-handle"></div>
+    <h3 id="modal-title">Log Visit</h3>
+    <p class="modal-sub" id="modal-sub"></p>
+    <!-- Extra fields shown only when converting a target to visited -->
+    <div id="modal-convert-fields" style="display:none;">
+      <div class="form-row">
+        <label class="form-label">Contacts Met</label>
+        <input type="text" class="form-input" id="modal-contacts" placeholder="Name, role, description...">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Location Type</label>
+        <select class="form-input" id="modal-type">
+          <option value="Self-Storage">Self-Storage</option>
+          <option value="Auto Parts">Auto Parts</option>
+          <option value="Apartment/Storage">Apartment / Storage</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-input" id="modal-date">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Notes</label>
+      <textarea class="form-input" id="modal-notes" placeholder="What happened? Contacts met, materials left, follow-up needed..."></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="modal-save-btn" onclick="saveModalVisit()">Save Visit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+
+const HOME = {lat:29.7664, lng:-95.4097, addr:'4206 Eigel St, Houston TX 77007'};
+
+const corrals=[
+  {name:"Bingle Crossing",addr:"12708 Northwest Fwy, Houston, TX 77092",lat:29.8284,lng:-95.4801,active:true},
+  {name:"Braesgate",addr:"9603 Fondren Rd, Houston, TX 77096",lat:29.6888,lng:-95.5108,active:true},
+  {name:"Central Station",addr:"1511 Texas Ave S, College Station, TX 77840",lat:30.6013,lng:-96.3144,active:true},
+  {name:"Clay & Mason Rd",addr:"21725 Clay Rd, Katy, TX 77449",lat:29.8293,lng:-95.7277,active:true},
+  {name:"Fairfield Marketplace",addr:"28902 Hempstead Rd, Cypress, TX 77433",lat:29.9495,lng:-95.7430,active:true},
+  {name:"Fountain View Drive",addr:"6015 Skyline Dr, Houston, TX 77057",lat:29.7375,lng:-95.4803,active:true},
+  {name:"Hearthstone Corners",addr:"6106 Highway 6 N, Houston, TX 77084",lat:29.8126,lng:-95.6441,active:true},
+  {name:"Jones Plaza",addr:"10860 FM 1960 W, Houston, TX 77065",lat:29.9188,lng:-95.5907,active:true},
+  {name:"Jones Square",addr:"10921 FM 1960, Houston, TX 77065",lat:29.9190,lng:-95.5870,active:true},
+  {name:"Kempwood",addr:"9469 Kempwood Dr, Houston, TX 77080",lat:29.8122,lng:-95.5085,active:true},
+  {name:"Kirkwood Market Place",addr:"11920 Westheimer Rd, Houston, TX 77077",lat:29.7362,lng:-95.5885,active:true},
+  {name:"Living Spaces - Conroe",addr:"10900 Interstate 45 S, Conroe, TX 77304",lat:30.2700,lng:-95.4580,active:true},
+  {name:"Living Spaces - Humble",addr:"18240 US-59, Humble, TX 77338",lat:29.9840,lng:-95.2690,active:true},
+  {name:"Living Spaces - Katy",addr:"444 Katy Vlg Pkwy, Katy, TX 77494",lat:29.7713,lng:-95.8164,active:true},
+  {name:"Living Spaces - Westheimer",addr:"2660 Fountain View Dr, Houston, TX 77057",lat:29.7399,lng:-95.4663,active:true},
+  {name:"Maplewood",addr:"5621 Beechnut St, Houston, TX 77096",lat:29.6906,lng:-95.4874,active:true},
+  {name:"Memorial at Kirkwood",addr:"14000 Memorial Dr, Houston, TX 77079",lat:29.7718,lng:-95.5703,active:true},
+  {name:"Merchants Park",addr:"901 N Shepherd Dr, Houston, TX 77008",lat:29.7939,lng:-95.4099,active:true},
+  {name:"Northtown Plaza",addr:"5402 North Freeway, Houston, TX 77022",lat:29.8230,lng:-95.3707,active:true},
+  {name:"Oak Village",addr:"10050 Long Point Rd, Houston, TX 77055",lat:29.7984,lng:-95.5196,active:true},
+  {name:"Royal Oaks Village",addr:"11815 Westheimer Rd, Houston, TX 77077",lat:29.7362,lng:-95.5834,active:true},
+  {name:"Spring Cypress Village",addr:"22506 Tomball Pkwy, Houston, TX 77070",lat:29.9548,lng:-95.5587,active:true},
+  {name:"Tanglewilde Center",addr:"9625 Westheimer Rd, Houston, TX 77063",lat:29.7378,lng:-95.5349,active:true},
+  {name:"West Eight",addr:"9034 W Sam Houston Pkwy N, Houston, TX 77064",lat:29.8626,lng:-95.5543,active:true},
+  {name:"Westheimer Commons",addr:"12520 Westheimer Rd, Houston, TX 77077",lat:29.7352,lng:-95.6010,active:true},
+  {name:"Willowbrook Pavilion",addr:"18351 TX-249, Houston, TX 77070",lat:29.9618,lng:-95.5412,active:true},
+  {name:"Windcliff Town Center",addr:"12340 Jones Rd, Houston, TX 77070",lat:29.9227,lng:-95.5799,active:true},
+  {name:"Assembly / HQ",addr:"6015 Skyline Dr, Houston, TX 77057",lat:29.7375,lng:-95.4803,active:false},
+  {name:"Bellaire Blvd",addr:"Bellaire Blvd & S Rice Ave, Bellaire, TX 77401",lat:29.7056,lng:-95.4192,active:false},
+  {name:"Blalock Market",addr:"1005 Blalock Rd, Houston, TX 77055",lat:29.7984,lng:-95.4860,active:false},
+  {name:"El Camino",addr:"5867 Bissonnet St, Bellaire, TX 77401",lat:29.6942,lng:-95.4620,active:false},
+  {name:"Jester Village",addr:"1525 W 18th St, Houston, TX 77008",lat:29.8013,lng:-95.4130,active:false},
+  {name:"Northchase Plaza",addr:"FM 1960 & Veterans Memorial, Houston, TX 77068",lat:29.9630,lng:-95.5220,active:false},
+  {name:"Richmond Square",addr:"5133 Richmond Ave, Houston, TX 77056",lat:29.7326,lng:-95.4651,active:false},
+  {name:"Shoppes at Memorial Villages",addr:"1022 Wirt Rd, Houston, TX 77055",lat:29.7923,lng:-95.4737,active:false},
+  {name:"Shops at Hilshire Village",addr:"1505 Wirt Rd, Houston, TX 77055",lat:29.7976,lng:-95.4747,active:false},
+  {name:"Spring Branch",addr:"7971 Long Point Rd, Houston, TX 77055",lat:29.8011,lng:-95.4867,active:false},
+  {name:"Spring Valley Village",addr:"8902 Fries Rd, Spring Valley, TX 77055",lat:29.7918,lng:-95.5050,active:false},
+  {name:"Westhill Village",addr:"7601 Westheimer Rd, Houston, TX 77063",lat:29.7381,lng:-95.5028,active:false}
+];
+
+// CRM Partners — each gets a visits[] array for the log
+const crmPartnersRaw=[
+  {name:"CubeSmart (Shepherd)",addr:"1202 Shepherd Dr, Houston, TX 77007",lat:29.7722,lng:-95.4090,type:"Self-Storage",contacts:"Kia (manager)",visits:[{date:"2026-03-10",note:"Manager Kia on front desk. People are generally receptive to materials."}],followUpDays:30},
+  {name:"O'Reilly Auto Parts (Shepherd)",addr:"941 N Shepherd Dr, Houston, TX 77008",lat:29.7908,lng:-95.4101,type:"Auto Parts",contacts:"Jessica (cashier)",visits:[{date:"2026-03-10",note:"Dropped off flyers and a cow with Jessica."}],followUpDays:30},
+  {name:"CubeSmart (N Shepherd)",addr:"1526 N Shepherd Dr, Houston, TX 77008",lat:29.7982,lng:-95.4096,type:"Self-Storage",contacts:"Madeline (tattoos, bubbly); Jose",visits:[{date:"2026-03-10",note:"Dropped materials."}],followUpDays:30},
+  {name:"Extra Space Storage (TC Jester)",addr:"1770 E T C Jester Blvd, Houston, TX 77008",lat:29.8058,lng:-95.4173,type:"Self-Storage",contacts:"Rochelle (big dreads, short)",visits:[{date:"2026-03-10",note:"Dropped materials."}],followUpDays:30},
+  {name:"West 18th Street Storage",addr:"2100 W 18th St, Houston, TX 77008",lat:29.8025,lng:-95.4155,type:"Self-Storage",contacts:"Lester (not manager, taller, black hair)",visits:[{date:"2026-03-10",note:"Has U-Haul trucks out front — potential conflict. Lester needs to ask manager. Check in ~1 month. Manager may say no due to U-Haul competition."}],followUpDays:30},
+  {name:"Morningstar Storage",addr:"4495 Katy Fwy, Houston, TX 77007",lat:29.7679,lng:-95.3920,type:"Self-Storage",contacts:"Cesar (bald, boss); Mark (bigger, black hair)",visits:[{date:"2026-03-10",note:"8 facilities in Houston (sold 4). Want to partner. Have 2 locations with more space: FM 529 (just bought, remodeling) & Greenhouse. Offer trailer parking spots ($100-200/mo). Pitch: promo code for 4 free hours for first-time renters. Spoke w/ Michael — confirm pitch details."}],followUpDays:14},
+  {name:"Heights West End",addr:"4040 Koehler St, Houston, TX 77007",lat:29.7748,lng:-95.3991,type:"Apartment/Storage",contacts:"Pollie (desk, purple hair)",visits:[{date:"2026-03-10",note:"Pollie gives tours and will hand flyers to prospects."}],followUpDays:30},
+  {name:"Extra Space Storage (N Loop)",addr:"502 North Loop, Houston, TX 77008",lat:29.8135,lng:-95.3834,type:"Self-Storage",contacts:"Renee (mgr, thicker, gray hair, cracked front tooth); Emily (unsure if still there)",visits:[{date:"2026-03-13",note:"Left cow + 50 flyers."}],followUpDays:30},
+  {name:"North Loop Self Storage",addr:"1440 North Loop, Houston, TX 77009",lat:29.8132,lng:-95.3799,type:"Self-Storage",contacts:"Brent (mid-40s, gray short hair, hat, very chill)",visits:[{date:"2026-03-13",note:"Said he'd pass to corporate to see if they're interested. Left cow + 50 flyers."}],followUpDays:30},
+  {name:"Big Tex Storage (Heights)",addr:"730 E 11th St, Houston, TX 77008",lat:29.7905,lng:-95.3887,type:"Self-Storage",contacts:"Lisa Denton (gave card, older, slight TX accent, sweet but shoots straight)",visits:[{date:"2026-03-13",note:"Strong partnership potential. Left cow + 50 flyers."}],followUpDays:30},
+  {name:"Community Self Storage",addr:"2515 Washington Ave, Houston, TX 77007",lat:29.7678,lng:-95.3849,type:"Self-Storage",contacts:"Tom (unhappy, older, part-time); Susan (older, gray hair); Sarah (younger, manager)",visits:[{date:"2026-03-13",note:"Has U-Hauls out front. Left cow + fewer flyers on front desk."}],followUpDays:30},
+  {name:"BullsEye Storage",addr:"3200 W Dallas St, Houston, TX 77019",lat:29.7576,lng:-95.3993,type:"Self-Storage",contacts:"Joy (manager, Black, dreadlocks, really nice)",visits:[{date:"2026-03-13",note:"Left a lot of flyers and a cow."}],followUpDays:30}
+];
+
+const unvisitedStorage=[
+  {name:"North Shepherd Mini Storage",addr:"5152 N Shepherd Dr, Houston, TX 77018",lat:29.8404,lng:-95.4104,rating:4.6},
+  {name:"Houston Self Storage",addr:"215 Wynne St, Houston, TX 77009",lat:29.8060,lng:-95.3717,rating:4.9,note:"Closed Thu & Fri — plan accordingly"},
+  {name:"Big Tex Storage (Richmond)",addr:"1810 Richmond Ave, Houston, TX 77098",lat:29.7345,lng:-95.4048,rating:4.8},
+  {name:"Public Storage (Greenbriar)",addr:"4121 Greenbriar Dr, Houston, TX 77098",lat:29.7290,lng:-95.4117,rating:4.8},
+  {name:"Public Storage (Westheimer 2006)",addr:"2006 Westheimer Rd, Houston, TX 77098",lat:29.7432,lng:-95.4083,rating:4.6},
+  {name:"SmartStop (Holcombe)",addr:"2412 W Holcombe Blvd, Houston, TX 77030",lat:29.7068,lng:-95.4155,rating:4.8},
+  {name:"Your Storage Place (Westheimer)",addr:"9333 Westheimer Rd, Houston, TX 77063",lat:29.7370,lng:-95.5282,rating:4.6},
+  {name:"Public Storage (Westheimer 3703)",addr:"3703 Westheimer Rd, Houston, TX 77027",lat:29.7414,lng:-95.4379,rating:4.8},
+  {name:"Public Storage (Westheimer 8989)",addr:"8989 Westheimer Rd, Houston, TX 77063",lat:29.7369,lng:-95.5226,rating:4.6},
+  {name:"Public Storage (Westheimer 5615)",addr:"5615 Westheimer Rd, Houston, TX 77056",lat:29.7375,lng:-95.4749,rating:4.7},
+  {name:"Public Storage (Westheimer 9526)",addr:"9526 Westheimer Rd, Houston, TX 77063",lat:29.7379,lng:-95.5345,rating:4.7},
+  {name:"Public Storage (Westheimer 3732)",addr:"3732 Westheimer Rd, Houston, TX 77027",lat:29.7419,lng:-95.4395,rating:4.7},
+  {name:"CubeSmart (Westheimer 7939)",addr:"7939 Westheimer Rd, Houston, TX 77063",lat:29.7371,lng:-95.5081,rating:4.8},
+  {name:"Right Move Storage (Royal Oaks)",addr:"12121 Westheimer Rd, Houston, TX 77077",lat:29.7352,lng:-95.5934,rating:4.8},
+  {name:"CubeSmart (Westheimer 8252)",addr:"8252 Westheimer Rd, Houston, TX 77063",lat:29.7385,lng:-95.5127,rating:4.8},
+  {name:"Your Storage Place (NW Fwy)",addr:"10901 Northwest Fwy, Houston, TX 77092",lat:29.8166,lng:-95.4681,rating:4.6},
+  {name:"CubeSmart (Mangum)",addr:"3735 Mangum Rd, Houston, TX 77092",lat:29.8233,lng:-95.4626,rating:4.6},
+  {name:"Devon Self Storage (43rd)",addr:"6300 W 43rd St, Houston, TX 77092",lat:29.8333,lng:-95.4823,rating:4.9},
+  {name:"Public Storage (Mangum)",addr:"2415 Mangum Rd, Houston, TX 77092",lat:29.8093,lng:-95.4596,rating:4.7},
+  {name:"Public Storage (Milwee)",addr:"5323 Milwee St, Houston, TX 77092",lat:29.8222,lng:-95.4689,rating:4.7},
+  {name:"Public Storage (Bingle)",addr:"5707 Bingle Rd, Houston, TX 77092",lat:29.8484,lng:-95.4899,rating:4.8},
+  {name:"Storage Rentals of America",addr:"4100 W 34th St, Houston, TX 77092",lat:29.8179,lng:-95.4521,rating:4.9},
+  {name:"Storage Solutions Plus (Sherwood)",addr:"4622 Sherwood Ln, Houston, TX 77092",lat:29.8142,lng:-95.4585,rating:4.7},
+  {name:"Extra Space (Hempstead)",addr:"10640 Hempstead Rd, Houston, TX 77092",lat:29.8106,lng:-95.4719,rating:4.6},
+  {name:"Public Storage (NW Fwy 14050)",addr:"14050 Northwest Fwy, Houston, TX 77040",lat:29.8561,lng:-95.5168,rating:4.8},
+  {name:"Storage King USA (Long Point)",addr:"7723 Long Point Rd, Houston, TX 77055",lat:29.8018,lng:-95.4818,rating:4.6},
+  {name:"Public Storage (Long Point)",addr:"9223 Long Point Rd, Houston, TX 77055",lat:29.7992,lng:-95.5157,rating:4.7},
+  {name:"Extra Space (Long Point)",addr:"8726 Long Point Rd, Houston, TX 77055",lat:29.8039,lng:-95.5054,rating:4.9},
+  {name:"Storage 77055",addr:"1239 Cedar Post Ln, Houston, TX 77055",lat:29.7910,lng:-95.5248,rating:5.0},
+  {name:"Box Self Storage",addr:"1508 Bingle Rd, Houston, TX 77055",lat:29.7969,lng:-95.4998,rating:4.7},
+  {name:"Extra Space (Wirt Rd)",addr:"2150 Wirt Rd, Houston, TX 77055",lat:29.8116,lng:-95.4849,rating:4.5},
+  {name:"Storage Depot (Ruland)",addr:"9021 Ruland Rd, Houston, TX 77055",lat:29.7978,lng:-95.5121,rating:3.9},
+  {name:"Public Storage (Beechnut 10220)",addr:"10220 Beechnut St, Houston, TX 77072",lat:29.6902,lng:-95.5623,rating:4.8},
+  {name:"Extra Space (Beechnut 11702)",addr:"11702 Beechnut St, Houston, TX 77072",lat:29.6892,lng:-95.5850,rating:4.8},
+  {name:"Bellaire-Hillcroft Storage",addr:"6117 Edgemoor Dr, Houston, TX 77081",lat:29.7032,lng:-95.4898,rating:4.0},
+  {name:"Public Storage (Fondren 12400)",addr:"12400 Fondren Rd, Houston, TX 77035",lat:29.6431,lng:-95.5086,rating:4.8},
+  {name:"Public Storage (Fondren 12090)",addr:"12090 Fondren Rd, Houston, TX 77035",lat:29.6484,lng:-95.5086,rating:4.8},
+  {name:"Store Space (S Willow)",addr:"5512 S Willow Dr, Houston, TX 77035",lat:29.6533,lng:-95.4754,rating:4.8},
+  {name:"Storage Direct (Mills Rd)",addr:"9250 Mills Rd, Houston, TX 77070",lat:29.9572,lng:-95.5577,rating:4.8},
+  {name:"Megacenter (FM 1960)",addr:"7075 FM 1960 Rd W, Houston, TX 77069",lat:29.9647,lng:-95.5332,rating:4.8},
+  {name:"iStorage (Cypress Creek)",addr:"1429 Cypress Creek Pkwy, Houston, TX 77090",lat:30.0130,lng:-95.4520,rating:4.7},
+  {name:"Public Storage (Cypress Creek)",addr:"9576 Cypress Creek Pkwy, Houston, TX 77070",lat:29.9437,lng:-95.5677,rating:4.6},
+  {name:"CubeSmart (FM 1960)",addr:"13340 FM 1960 Rd W, Houston, TX 77065",lat:29.9157,lng:-95.6192,rating:4.4},
+  {name:"Storage Solutions Plus (Tower Oaks)",addr:"10909 Tower Oaks Blvd, Houston, TX 77070",lat:29.9389,lng:-95.5831,rating:4.8},
+  {name:"Public Storage (FM 1960 2960)",addr:"2960 FM 1960, Houston, TX 77073",lat:30.0197,lng:-95.3826,rating:4.7},
+  {name:"Public Storage (FM 1960 621)",addr:"621 FM 1960, Houston, TX 77073",lat:30.0242,lng:-95.4198,rating:4.8},
+  {name:"North Loop Self Storage (Curio)",addr:"10 Farrell St, Houston, TX 77022",lat:29.8398,lng:-95.3832,rating:4.1},
+  {name:"Public Storage (North Fwy 9030)",addr:"9030 North Fwy, Houston, TX 77037",lat:29.8898,lng:-95.4116,rating:4.5},
+  {name:"iStorage (Hwy 6 N)",addr:"4177 Hwy 6 N, Houston, TX 77084",lat:29.8332,lng:-95.6469,rating:4.6},
+  {name:"Devon Self Storage (Hwy 6)",addr:"6610 Hwy 6 N, Houston, TX 77084",lat:29.8750,lng:-95.6441,rating:4.8},
+  {name:"Public Storage (Hwy 6)",addr:"6456 Hwy 6 N, Houston, TX 77084",lat:29.8730,lng:-95.6447,rating:4.7},
+  {name:"Storage King USA (Hwy 6)",addr:"5905 Hwy 6 N, Houston, TX 77084",lat:29.8573,lng:-95.6463,rating:4.4},
+  {name:"Public Storage (Loch Katrine)",addr:"16303 Loch Katrine Ln, Houston, TX 77084",lat:29.8453,lng:-95.6488,rating:4.8},
+  {name:"Extra Space (Hwy 6 7610)",addr:"7610 Hwy 6 N, Houston, TX 77095",lat:29.8884,lng:-95.6421,rating:4.9},
+  {name:"Public Storage (Addicks Satsuma)",addr:"5460 Addicks Satsuma Rd, Houston, TX 77084",lat:29.8561,lng:-95.6396,rating:4.9},
+  {name:"Extra Space (Sam Houston Pkwy)",addr:"7835 W Sam Houston Pkwy N, Houston, TX 77040",lat:29.8858,lng:-95.5499,rating:4.9},
+  {name:"SmartStop (West Rd)",addr:"10830 West Rd, Houston, TX 77064",lat:29.9099,lng:-95.5786,rating:4.8},
+  {name:"Megacenter (Sam Houston Pkwy)",addr:"1530 W Sam Houston Pkwy N, Houston, TX 77043",lat:29.8013,lng:-95.5631,rating:5.0},
+  {name:"Extra Space (Senate Ave)",addr:"7302 Senate Ave, Houston, TX 77040",lat:29.8787,lng:-95.5611,rating:4.9},
+  {name:"Memorial Drive Storage",addr:"14760 Memorial Dr, Houston, TX 77079",lat:29.7717,lng:-95.6112,rating:4.9},
+  {name:"Rummel Creek Mini Storage",addr:"13200 Memorial Dr, Houston, TX 77079",lat:29.7734,lng:-95.5733,rating:5.0},
+  {name:"Public Storage (Katy Fwy 11900)",addr:"11900 Katy Fwy, Houston, TX 77079",lat:29.7855,lng:-95.5973,rating:4.5},
+  {name:"iStorage (Tully St)",addr:"1101 Tully St, Houston, TX 77079",lat:29.7808,lng:-95.6030,rating:4.6},
+  {name:"Public Storage (Katy Fwy 10801)",addr:"10801 Katy Fwy, Houston, TX 77079",lat:29.7836,lng:-95.5673,rating:4.7},
+  {name:"CubeSmart (Conroe I-45)",addr:"10882 Interstate 45 S, Conroe, TX 77304",lat:30.2714,lng:-95.4577,rating:4.8},
+  {name:"Devon Self Storage (Conroe)",addr:"810 Gladstell St, Conroe, TX 77304",lat:30.2925,lng:-95.4704,rating:4.9},
+  {name:"Public Storage (Conroe I-45)",addr:"1450 Interstate 45 S, Conroe, TX 77304",lat:30.2820,lng:-95.4597,rating:4.8},
+  {name:"iStorage (W Davis Conroe)",addr:"2135 W Davis St, Conroe, TX 77304",lat:30.3172,lng:-95.4803,rating:4.7},
+  {name:"Montgomery Self Storage",addr:"1418 FM 2854 Rd, Conroe, TX 77304",lat:30.3093,lng:-95.4761,rating:4.8},
+  {name:"SmartStop (FM 1488 Conroe)",addr:"3750 FM 1488, Conroe, TX 77384",lat:30.2280,lng:-95.5226,rating:4.8},
+  {name:"Storage Sense (Humble)",addr:"18006 US-59, Humble, TX 77396",lat:29.9794,lng:-95.2754,rating:4.8},
+  {name:"Store Space (E N Belt)",addr:"8569 E N Belt, Humble, TX 77396",lat:29.9379,lng:-95.2577,rating:4.9},
+  {name:"CubeSmart (FM 1960 Humble)",addr:"7900 FM 1960, Humble, TX 77338",lat:30.0041,lng:-95.3068,rating:4.7},
+  {name:"Extra Space (FM 1960 Humble)",addr:"1701 FM 1960 Bypass, Humble, TX 77338",lat:30.0028,lng:-95.2494,rating:4.8},
+  {name:"iStorage (FM 1960 Humble)",addr:"2115 FM 1960, Humble, TX 77338",lat:30.0001,lng:-95.2422,rating:4.2},
+  {name:"Public Storage (US-59 Humble)",addr:"18006 US-59, Humble, TX 77396",lat:29.9797,lng:-95.2754,rating:4.8},
+  {name:"Katy Ranch Self Storage",addr:"24984 Katy Ranch Rd, Katy, TX 77494",lat:29.7827,lng:-95.7983,rating:4.8},
+  {name:"Devon Self Storage (Katy)",addr:"5110 Franz Rd, Katy, TX 77493",lat:29.8019,lng:-95.8063,rating:4.9},
+  {name:"CubeSmart (Westheimer Pkwy Katy)",addr:"25595 Westheimer Pkwy, Katy, TX 77494",lat:29.7490,lng:-95.7979,rating:4.7},
+  {name:"SmartStop (Westheimer Pkwy Katy)",addr:"23250 Westheimer Pkwy, Katy, TX 77494",lat:29.7340,lng:-95.7706,rating:4.8},
+  {name:"CubeSmart (Katy Flewellen)",addr:"1430 Katy Flewellen Rd, Katy, TX 77494",lat:29.7682,lng:-95.8203,rating:4.5},
+  {name:"iStorage (Gaston Rd Katy)",addr:"11511 Gaston Rd, Katy, TX 77494",lat:29.7513,lng:-95.8320,rating:4.7},
+  {name:"iStorage (Franz Rd Katy)",addr:"24620 Franz Rd, Katy, TX 77493",lat:29.8021,lng:-95.7968,rating:4.2},
+  {name:"Lone Star Storage Center",addr:"20603 Clay Rd, Katy, TX 77449",lat:29.8308,lng:-95.7340,rating:4.2},
+  {name:"Public Storage (Clay Rd)",addr:"21831 Clay Rd, Katy, TX 77449",lat:29.8313,lng:-95.7577,rating:4.8},
+  {name:"SmartStop (US-290 Cypress)",addr:"27236 US-290, Cypress, TX 77433",lat:29.9836,lng:-95.7256,rating:4.8},
+  {name:"Public Storage (Fry Rd 12906)",addr:"12906 Fry Rd, Cypress, TX 77433",lat:29.9678,lng:-95.7015,rating:4.6},
+  {name:"Public Storage (Fry Rd 9102)",addr:"9102 Fry Rd, Cypress, TX 77433",lat:29.9145,lng:-95.7270,rating:4.8},
+  {name:"Cy-Fair Storage",addr:"11650 Barker Cypress Rd, Cypress, TX 77433",lat:29.9444,lng:-95.6773,rating:4.7},
+  {name:"iStorage (Cypress N Houston)",addr:"14820 Cypress N Houston Rd, Cypress, TX 77429",lat:29.9465,lng:-95.6456,rating:4.6},
+  {name:"iStorage (Huffmeister)",addr:"17010 Huffmeister Rd, Cypress, TX 77429",lat:29.9954,lng:-95.6790,rating:4.4},
+  {name:"SmartStop (College Station)",addr:"3101 Texas Ave S, College Station, TX 77845",lat:30.5949,lng:-96.2933,rating:4.9},
+  {name:"SpareBox Storage (Earl Rudder)",addr:"3201 Earl Rudder Fwy S, College Station, TX 77845",lat:30.5968,lng:-96.2887,rating:4.7},
+  {name:"Lock N Roll Storage",addr:"1501 Earl Rudder Fwy S, College Station, TX 77845",lat:30.6326,lng:-96.3017,rating:4.6},
+  {name:"CubeSmart (Holleman Dr)",addr:"104 Holleman Dr, College Station, TX 77840",lat:30.5957,lng:-96.3328,rating:4.7},
+  {name:"Dowling Road Storage",addr:"10257 N Dowling Rd, College Station, TX 77845",lat:30.5761,lng:-96.3411,rating:4.9},
+  {name:"LockTite Storage",addr:"2672 Horse Haven Ln, College Station, TX 77845",lat:30.6240,lng:-96.2946,rating:4.8},
+  {name:"SpareBox (FM 2154)",addr:"13101 FM 2154, College Station, TX 77845",lat:30.5676,lng:-96.3053,rating:4.7}
+];
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let crmPartners = JSON.parse(JSON.stringify(crmPartnersRaw)); // deep copy so we can mutate
+let currentTab = 'visited';
+let selectedCardId = null;
+let modalTargetId = null; // for existing partner log
+let crmSearchQ = '';
+let targetSortMode = 'rating';
+
+// ═══════════════════════════════════════════════
+// DATE HELPERS
+// ═══════════════════════════════════════════════
+function today(){ return new Date().toISOString().slice(0,10); }
+function formatDate(s){
+  if(!s) return '—';
+  const [y,m,d] = s.split('-');
+  return `${parseInt(m)}/${parseInt(d)}/${y}`;
+}
+function daysUntil(dateStr){
+  const now = new Date(); now.setHours(0,0,0,0);
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  return Math.round((d - now) / 86400000);
+}
+function addDays(dateStr, n){
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+function lastVisitDate(p){
+  if(!p.visits || !p.visits.length) return null;
+  return p.visits.slice().sort((a,b)=>b.date.localeCompare(a.date))[0].date;
+}
+function followUpDate(p){
+  const lv = lastVisitDate(p);
+  if(!lv) return null;
+  return addDays(lv, p.followUpDays || 30);
+}
+function urgencyLevel(p){
+  const fu = followUpDate(p);
+  if(!fu) return 'none';
+  const d = daysUntil(fu);
+  if(d < 0) return 'overdue';
+  if(d <= 7) return 'soon';
+  return 'ok';
+}
+
+// ═══════════════════════════════════════════════
+// MAP SETUP
+// ═══════════════════════════════════════════════
+const map = L.map('map',{zoomControl:true,attributionControl:false}).setView([29.80,-95.48],11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);
+
+function mkIcon(e,bg,border,s=34){
+  return L.divIcon({className:'',html:`<div style="width:${s}px;height:${s}px;display:flex;align-items:center;justify-content:center;background:${bg};border:2.5px solid ${border};border-radius:50%;font-size:${Math.round(s*.47)}px;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer;">${e}</div>`,iconSize:[s,s],iconAnchor:[s/2,s/2],popupAnchor:[0,-s/2]});
+}
+const icons = {
+  corralActive: mkIcon('🐄','#052e16','#22c55e',38),
+  corralInactive: mkIcon('⊘','#1f2937','#6b7280',30),
+  visited: mkIcon('✓','#0c1b3a','#3b82f6',32),
+  auto: mkIcon('🔧','#1a0a2e','#a855f7',32),
+  apt: mkIcon('🏠','#2a0a1e','#ec4899',32),
+  unvisited: mkIcon('★','#1a1000','#f59e0b',28),
+  home: mkIcon('🏡','#1a0a2e','#f97316',36),
+  overdue: mkIcon('!','#3f0000','#ef4444',32),
+  soon: mkIcon('✓','#1a1200','#f59e0b',32),
+};
+
+const layers = {
+  corralActive: L.layerGroup().addTo(map),
+  corralInactive: L.layerGroup().addTo(map),
+  visited: L.layerGroup().addTo(map),
+  auto: L.layerGroup().addTo(map),
+  apt: L.layerGroup().addTo(map),
+  unvisited: L.layerGroup().addTo(map),
+  radius: L.layerGroup().addTo(map),
+  home: L.layerGroup().addTo(map)
+};
+const layerVisible = {};
+Object.keys(layers).forEach(k => layerVisible[k] = true);
+
+const allMapMarkers = [];
+const activeCorrals = corrals.filter(c => c.active);
+
+// Home pin
+L.marker([HOME.lat, HOME.lng], {icon: icons.home})
+  .bindPopup(`<b>🏡 Home Base</b><br><span class="pop-addr">${HOME.addr}</span>`)
+  .addTo(layers.home);
+
+// Corrals
+corrals.forEach(c => {
+  const key = c.active ? 'corralActive' : 'corralInactive';
+  const tagCls = c.active ? 'background:#22c55e22;color:#4ade80;border:1px solid #22c55e44;' : 'background:#6b728022;color:#9ca3af;border:1px solid #6b728044;';
+  const m = L.marker([c.lat,c.lng],{icon:icons[key]})
+    .bindPopup(`<b>${c.name}</b><br><span class="pop-addr">${c.addr}</span><br><span class="pop-tag" style="${tagCls}">${c.active?'ACTIVE CORRAL':'INACTIVE'}</span>`)
+    .addTo(layers[key]);
+  allMapMarkers.push({marker:m,name:c.name,addr:c.addr,layer:key});
+});
+
+// Unvisited storage
+function haversine(a,b,c,d){const R=3958.8,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180;const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function nearestCorral(lat,lng){let best=null,bd=Infinity;activeCorrals.forEach(c=>{const d=haversine(lat,lng,c.lat,c.lng);if(d<bd){bd=d;best=c.name;}});return bd<=8?{name:best,dist:bd}:null;}
+
+unvisitedStorage.forEach(s => {
+  const nc = nearestCorral(s.lat,s.lng);
+  const m = L.marker([s.lat,s.lng],{icon:icons.unvisited})
+    .bindPopup(`<b>${s.name}</b><br><span class="pop-addr">${s.addr}</span><br><span class="pop-tag" style="background:#f59e0b22;color:#fbbf24;border:1px solid #f59e0b44;">NOT YET VISITED</span>${s.rating?`<br><span class="pop-rating">★ ${s.rating}</span>`:''}${nc?`<br><span class="pop-nearest">Nearest corral: ${nc.name} (${nc.dist.toFixed(1)} mi)</span>`:''}${s.note?`<br><span style="color:#f87171;font-size:11px;">⚠ ${s.note}</span>`:''}<br><button class="pop-btn" onclick="openDirections(${s.lat},${s.lng})">📍 Directions</button>`)
+    .addTo(layers.unvisited);
+  allMapMarkers.push({marker:m,name:s.name,addr:s.addr,layer:'unvisited'});
+});
+
+// Rebuild unvisited markers from scratch (called after a target is converted to visited)
+function rebuildUnvisitedMarkers(){
+  layers.unvisited.clearLayers();
+  for(let i=allMapMarkers.length-1;i>=0;i--){
+    if(allMapMarkers[i].layer==='unvisited') allMapMarkers.splice(i,1);
+  }
+  unvisitedStorage.forEach(s=>{
+    const nc=nearestCorral(s.lat,s.lng);
+    const m=L.marker([s.lat,s.lng],{icon:icons.unvisited})
+      .bindPopup(`<b>${s.name}</b><br><span class="pop-addr">${s.addr}</span><br><span class="pop-tag" style="background:#f59e0b22;color:#fbbf24;border:1px solid #f59e0b44;">NOT YET VISITED</span>${s.rating?`<br><span class="pop-rating">★ ${s.rating}</span>`:''}${nc?`<br><span class="pop-nearest">Nearest corral: ${nc.name} (${nc.dist.toFixed(1)} mi)</span>`:''}${s.note?`<br><span style="color:#f87171;font-size:11px;">⚠ ${s.note}</span>`:''}<br><button class="pop-btn" onclick="openDirections(${s.lat},${s.lng})">📍 Directions</button>`)
+      .addTo(layers.unvisited);
+    allMapMarkers.push({marker:m,name:s.name,addr:s.addr,layer:'unvisited'});
+  });
+}
+
+// ═══════════════════════════════════════════════
+// CRM PARTNER MARKERS (dynamic — rebuilt on state change)
+// ═══════════════════════════════════════════════
+let partnerMarkers = {}; // id -> leaflet marker
+
+function rebuildPartnerMarkers(){
+  // Clear existing
+  layers.visited.clearLayers();
+  layers.auto.clearLayers();
+  layers.apt.clearLayers();
+  // Remove old entries from allMapMarkers
+  for(let i=allMapMarkers.length-1;i>=0;i--){
+    if(['visited','auto','apt'].includes(allMapMarkers[i].layer)) allMapMarkers.splice(i,1);
+  }
+  partnerMarkers = {};
+  crmPartners.forEach((p,i) => {
+    let key='visited', icon=icons.visited;
+    const urg = urgencyLevel(p);
+    if(urg==='overdue') icon=icons.overdue;
+    else if(urg==='soon') icon=icons.soon;
+    if(p.type==='Auto Parts'){key='auto';icon=icons.auto;}
+    else if(p.type==='Apartment/Storage'){key='apt';icon=icons.apt;}
+    const fu = followUpDate(p);
+    const lv = lastVisitDate(p);
+    const urgColor = urg==='overdue'?'color:#f87171':urg==='soon'?'color:#fbbf24':'color:#4ade80';
+    const m = L.marker([p.lat,p.lng],{icon})
+      .bindPopup(`<b>${p.name}</b><br><span class="pop-addr">${p.addr}</span><br><span class="pop-tag" style="background:#3b82f622;color:#60a5fa;border:1px solid #3b82f644;">${p.type.toUpperCase()} — VISITED</span>${p.contacts?`<br><span class="pop-contact">👤 ${p.contacts}</span>`:''}${lv?`<br><span class="pop-followup">Last visit: ${formatDate(lv)}</span>`:''}${fu?`<br><span class="pop-followup" style="${urgColor}">Follow-up: ${formatDate(fu)}${urg==='overdue'?' ⚠️ OVERDUE':urg==='soon'?' (soon)':''}</span>`:''}`)
+      .addTo(layers[key]);
+    m.on('click',()=>{ openCRMToPartner(i); });
+    partnerMarkers[i] = m;
+    allMapMarkers.push({marker:m,name:p.name,addr:p.addr,layer:key});
+  });
+}
+
+// ═══════════════════════════════════════════════
+// LAYER TOGGLE
+// ═══════════════════════════════════════════════
+function toggleLayer(key){
+  layerVisible[key] = !layerVisible[key];
+  const el = document.getElementById('leg-'+key);
+  if(layerVisible[key]){map.addLayer(layers[key]);el&&el.classList.remove('dimmed');}
+  else{map.removeLayer(layers[key]);el&&el.classList.add('dimmed');}
+}
+
+// ═══════════════════════════════════════════════
+// MAP SEARCH & RADIUS
+// ═══════════════════════════════════════════════
+function filterMapMarkers(q){
+  q = q.toLowerCase();
+  allMapMarkers.forEach(m=>{
+    const match = !q || m.name.toLowerCase().includes(q) || m.addr.toLowerCase().includes(q);
+    m.marker.setOpacity(match?1:0.1);
+  });
+}
+
+let radiusMiles = 5;
+function setRadius(mi){
+  radiusMiles = mi;
+  document.querySelectorAll('.rbtn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.mi)===mi));
+  layers.radius.clearLayers();
+  if(!mi) return;
+  activeCorrals.forEach(c=>{
+    L.circle([c.lat,c.lng],{radius:mi*1609.34,color:'#22c55e',fillColor:'#22c55e',fillOpacity:.04,weight:1,opacity:.25,dashArray:'6 4'}).addTo(layers.radius);
+  });
+}
+setRadius(5);
+
+// ═══════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════
+function updateStats(){
+  document.getElementById('s-corrals').textContent = corrals.filter(c=>c.active).length;
+  document.getElementById('s-visited').textContent = crmPartners.length;
+  document.getElementById('s-unvisited').textContent = unvisitedStorage.length;
+  document.getElementById('s-overdue').textContent = crmPartners.filter(p=>urgencyLevel(p)==='overdue').length;
+  // Legend counts
+  const cnt = {};
+  allMapMarkers.forEach(m=>{cnt[m.layer]=(cnt[m.layer]||0)+1;});
+  ['corralActive','corralInactive','visited','auto','apt','unvisited'].forEach(k=>{
+    const el=document.getElementById('lc-'+k);if(el) el.textContent=cnt[k]||0;
+  });
+}
+
+// ═══════════════════════════════════════════════
+// ALERT BANNER
+// ═══════════════════════════════════════════════
+function updateAlertBanner(){
+  const overdue = crmPartners.filter(p=>urgencyLevel(p)==='overdue');
+  const soon = crmPartners.filter(p=>urgencyLevel(p)==='soon');
+  const all = [...overdue, ...soon];
+  const banner = document.getElementById('alert-banner');
+  const list = document.getElementById('alert-list');
+  if(!all.length){ banner.classList.remove('show'); return; }
+  banner.classList.add('show');
+  list.innerHTML = all.map(p=>{
+    const fu=followUpDate(p), d=daysUntil(fu);
+    const label = d<0?`${Math.abs(d)}d overdue`:`Due in ${d}d`;
+    return `<div class="alert-item">${p.name} <span>${label}</span></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// CRM RENDER
+// ═══════════════════════════════════════════════
+function switchTab(tab){
+  currentTab = tab;
+  selectedCardId = null;
+  document.getElementById('tab-visited').classList.toggle('active', tab==='visited');
+  document.getElementById('tab-targets').classList.toggle('active', tab==='targets');
+  renderCRM();
+}
+
+function filterCRM(q){ crmSearchQ=q; renderCRM(); }
+
+function renderCRM(){
+  const body = document.getElementById('crm-body');
+  if(currentTab==='visited') renderVisited(body);
+  else renderTargets(body);
+}
+
+function typeIcon(type){
+  if(type==='Auto Parts') return '🔧';
+  if(type==='Apartment/Storage') return '🏠';
+  return '🏪';
+}
+function typeIconClass(type){
+  if(type==='Auto Parts') return 'auto';
+  if(type==='Apartment/Storage') return 'apt';
+  return 'storage';
+}
+
+function renderVisited(body){
+  let partners = crmPartners.filter((p,i)=>{
+    if(!crmSearchQ) return true;
+    const q=crmSearchQ.toLowerCase();
+    return p.name.toLowerCase().includes(q)||p.addr.toLowerCase().includes(q)||(p.contacts||'').toLowerCase().includes(q);
+  });
+
+  // Sort: overdue first, then soon, then by follow-up date
+  partners = partners.map((p,i)=>({...p,_i:crmPartners.indexOf(p)}));
+  partners.sort((a,b)=>{
+    const order={overdue:0,soon:1,ok:2,none:3};
+    const da=order[urgencyLevel(a)], db=order[urgencyLevel(b)];
+    if(da!==db) return da-db;
+    return (followUpDate(a)||'').localeCompare(followUpDate(b)||'');
+  });
+
+  if(!partners.length){ body.innerHTML=`<div class="empty-state"><div class="es-icon">🔍</div><p>No partners match your search.</p></div>`; return; }
+
+  const sections = {overdue:[],soon:[],ok:[]};
+  partners.forEach(p=>{ const u=urgencyLevel(p); if(sections[u]) sections[u].push(p); else sections.ok.push(p); });
+
+  let html='';
+  if(sections.overdue.length){
+    html+=`<div class="section-header"><span>🔴 Overdue Follow-ups</span><span class="section-count">${sections.overdue.length}</span></div>`;
+    html+=sections.overdue.map(p=>partnerCard(p)).join('');
+  }
+  if(sections.soon.length){
+    html+=`<div class="section-header"><span>🟡 Due This Week</span><span class="section-count">${sections.soon.length}</span></div>`;
+    html+=sections.soon.map(p=>partnerCard(p)).join('');
+  }
+  if(sections.ok.length){
+    html+=`<div class="section-header"><span>✅ All Good</span><span class="section-count">${sections.ok.length}</span></div>`;
+    html+=sections.ok.map(p=>partnerCard(p)).join('');
+  }
+  body.innerHTML = html;
+}
+
+function partnerCard(p){
+  const id = p._i !== undefined ? p._i : crmPartners.indexOf(p);
+  const urg = urgencyLevel(p);
+  const fu = followUpDate(p);
+  const lv = lastVisitDate(p);
+  const isOpen = selectedCardId===id;
+  const urgBadge = urg==='overdue'
+    ? `<span class="badge badge-red">⚠ Overdue ${fu?formatDate(fu):''}</span>`
+    : urg==='soon'
+    ? `<span class="badge badge-amber">⏰ Due ${fu?formatDate(fu):''}</span>`
+    : fu ? `<span class="badge badge-green">✓ Follow-up ${formatDate(fu)}</span>` : '';
+
+  const visits = (p.visits||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const visitLog = visits.map((v,vi)=>`
+    <div class="visit-entry">
+      <div><div class="visit-entry-date">${formatDate(v.date)}</div>${v.note?`<div class="visit-entry-note">${v.note}</div>`:''}</div>
+      <span class="visit-entry-delete" onclick="deleteVisit(${id},${crmPartners[id].visits.indexOf(v)},event)" title="Delete">✕</span>
+    </div>`).join('');
+
+  return `
+  <div class="crm-card${isOpen?' selected':''}" id="card-${id}" onclick="toggleCard(${id})">
+    <div class="crm-card-header">
+      <div class="crm-card-icon ${typeIconClass(p.type)}">${typeIcon(p.type)}</div>
+      <div class="crm-card-main">
+        <div class="crm-card-name">${p.name}</div>
+        <div class="crm-card-addr">${p.addr}</div>
+      </div>
+    </div>
+    <div class="crm-card-badges">
+      ${urgBadge}
+      ${lv?`<span class="badge badge-blue">Last: ${formatDate(lv)}</span>`:''}
+    </div>
+    <div class="crm-card-detail${isOpen?' open':''}">
+      ${p.contacts?`<div class="detail-row"><span class="detail-label">👤 Contacts</span><span class="detail-val">${p.contacts}</span></div>`:''}
+      <div class="detail-row"><span class="detail-label">📍 Address</span><span class="detail-val">${p.addr}</span></div>
+      <hr class="detail-divider">
+      <div class="visit-log">
+        <div class="visit-log-title">Visit History</div>
+        ${visitLog||'<div style="color:var(--text3);font-size:12px;">No visits logged yet.</div>'}
+      </div>
+      <div class="log-visit-section">
+        <button class="log-visit-toggle" onclick="openLogModal(${id},event)">+ Log New Visit</button>
+      </div>
+      <button class="map-btn" onclick="flyToPartner(${id},event)">🗺 Show on Map</button>
+    </div>
+  </div>`;
+}
+
+function renderTargets(body){
+  let targets = unvisitedStorage.filter(s=>{
+    if(!crmSearchQ) return true;
+    const q=crmSearchQ.toLowerCase();
+    return s.name.toLowerCase().includes(q)||s.addr.toLowerCase().includes(q);
+  });
+
+  // Sort
+  if(targetSortMode==='rating') targets.sort((a,b)=>(b.rating||0)-(a.rating||0));
+  else targets.sort((a,b)=>{
+    // sort by distance from home
+    const da=haversine(HOME.lat,HOME.lng,a.lat,a.lng);
+    const db=haversine(HOME.lat,HOME.lng,b.lat,b.lng);
+    return da-db;
+  });
+
+  let html=`
+  <div class="filter-row">
+    <div class="filter-chip${targetSortMode==='rating'?' active':''}" onclick="setTargetSort('rating')">★ Top Rated</div>
+    <div class="filter-chip${targetSortMode==='distance'?' active':''}" onclick="setTargetSort('distance')">📍 Nearest to Home</div>
+  </div>
+  <div class="section-header"><span>Unvisited Storage Facilities</span><span class="section-count">${targets.length}</span></div>`;
+
+  if(!targets.length){ html+=`<div class="empty-state"><div class="es-icon">🎉</div><p>All targets visited!</p></div>`; body.innerHTML=html; return; }
+
+  // Map filtered targets back to real indices in unvisitedStorage
+  html += targets.map((s)=>{
+    const realIdx = unvisitedStorage.indexOf(s);
+    const nc=nearestCorral(s.lat,s.lng);
+    const distHome=haversine(HOME.lat,HOME.lng,s.lat,s.lng).toFixed(1);
+    const isOpen=selectedCardId===`t-${realIdx}`;
+    const hasNotes = s.crmNotes && s.crmNotes.length;
+    return `
+    <div class="target-card${isOpen?' selected':''}" id="tcard-${realIdx}" onclick="toggleTargetCard(${realIdx})">
+      <div class="target-card-header">
+        <div class="crm-card-icon storage">🏪</div>
+        <div class="target-card-info">
+          <div class="target-card-name">${s.name}</div>
+          <div class="target-card-addr">${s.addr}</div>
+        </div>
+        <div class="target-card-rating">
+          ${s.rating?`★ ${s.rating}`:''}
+          <div class="target-card-nearest">${distHome} mi from home</div>
+          ${hasNotes?`<div style="color:var(--blue);font-size:10px;">📝 ${s.crmNotes.length} note${s.crmNotes.length>1?'s':''}</div>`:''}
+        </div>
+      </div>
+      <div class="target-card-detail${isOpen?' open':''}">
+        ${s.note?`<div style="color:#f87171;font-size:12px;margin-bottom:8px;">⚠ ${s.note}</div>`:''}
+        ${nc?`<div class="detail-row"><span class="detail-label">🐄 Nearest</span><span class="detail-val">${nc.name} (${nc.dist.toFixed(1)} mi)</span></div>`:''}
+        <div class="detail-row"><span class="detail-label">🏠 From home</span><span class="detail-val">${distHome} miles</span></div>
+        ${hasNotes?`<hr class="detail-divider"><div class="visit-log-title" style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">Notes</div>${s.crmNotes.map((n,ni)=>`<div class="visit-entry"><div><div class="visit-entry-date">${formatDate(n.date)}</div>${n.note?`<div class="visit-entry-note">${n.note}</div>`:''}</div><span class="visit-entry-delete" onclick="deleteTargetNote(${realIdx},${ni},event)">✕</span></div>`).join('')}`:''}
+        <hr class="detail-divider">
+        <button class="log-visit-toggle" style="margin-bottom:6px;background:var(--blue-dim);border-color:#3b82f640;color:var(--blue);" onclick="openTargetNoteModal(${realIdx},event)">📝 Add Note</button>
+        <button class="log-visit-toggle" onclick="openConvertModal(${realIdx},event)">✅ Mark as Visited</button>
+        <button class="map-btn" style="margin-top:6px;" onclick="flyToTarget(${realIdx},event)">🗺 Show on Map</button>
+        <button class="map-btn" style="margin-top:5px;color:var(--green);border-color:#22c55e40;" onclick="openDirections(${s.lat},${s.lng},event)">📍 Get Directions</button>
+      </div>
+    </div>`;
+  }).join('');
+  body.innerHTML = html;
+}
+
+function setTargetSort(mode){ targetSortMode=mode; renderCRM(); }
+
+// ═══════════════════════════════════════════════
+// CARD INTERACTIONS
+// ═══════════════════════════════════════════════
+function toggleCard(id){
+  selectedCardId = selectedCardId===id ? null : id;
+  renderCRM();
+  // Scroll to card
+  setTimeout(()=>{const el=document.getElementById(`card-${id}`);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});},50);
+}
+
+function toggleTargetCard(realIdx){
+  const key=`t-${realIdx}`;
+  selectedCardId = selectedCardId===key ? null : key;
+  renderCRM();
+  setTimeout(()=>{const el=document.getElementById(`tcard-${realIdx}`);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});},50);
+}
+
+function flyToPartner(id, e){
+  e&&e.stopPropagation();
+  const p=crmPartners[id];
+  map.flyTo([p.lat,p.lng],15,{duration:.8});
+  if(window.innerWidth<=768) showMobileMap();
+  setTimeout(()=>{ if(partnerMarkers[id]) partnerMarkers[id].openPopup(); },900);
+}
+
+function flyToTarget(realIdx, e){
+  e&&e.stopPropagation();
+  const s=unvisitedStorage[realIdx];
+  map.flyTo([s.lat,s.lng],15,{duration:.8});
+  if(window.innerWidth<=768) showMobileMap();
+}
+
+function openDirections(lat,lng,e){
+  e&&e.stopPropagation();
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,'_blank');
+}
+
+// ═══════════════════════════════════════════════
+// VISIT LOGGING
+// ═══════════════════════════════════════════════
+
+// Mode tracking: 'partner' = log visit on existing partner
+//                'target-note' = add note to unvisited target
+//                'target-convert' = mark target as visited (promotes to partner)
+let modalMode = 'partner';
+let modalTargetStorageIdx = null;
+
+function openLogModal(id, e){
+  e&&e.stopPropagation();
+  modalMode = 'partner';
+  modalTargetId = id;
+  document.getElementById('modal-title').textContent = 'Log Visit';
+  document.getElementById('modal-sub').textContent = crmPartners[id].name;
+  document.getElementById('modal-date').value = today();
+  document.getElementById('modal-notes').value = '';
+  document.getElementById('modal-convert-fields').style.display = 'none';
+  document.getElementById('modal-save-btn').textContent = 'Save Visit';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function openTargetNoteModal(realIdx, e){
+  e&&e.stopPropagation();
+  modalMode = 'target-note';
+  modalTargetStorageIdx = realIdx;
+  document.getElementById('modal-title').textContent = 'Add Note';
+  document.getElementById('modal-sub').textContent = unvisitedStorage[realIdx].name;
+  document.getElementById('modal-date').value = today();
+  document.getElementById('modal-notes').value = '';
+  document.getElementById('modal-convert-fields').style.display = 'none';
+  document.getElementById('modal-save-btn').textContent = 'Save Note';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function openConvertModal(realIdx, e){
+  e&&e.stopPropagation();
+  modalMode = 'target-convert';
+  modalTargetStorageIdx = realIdx;
+  const s = unvisitedStorage[realIdx];
+  document.getElementById('modal-title').textContent = '✅ Mark as Visited';
+  document.getElementById('modal-sub').textContent = s.name;
+  document.getElementById('modal-date').value = today();
+  document.getElementById('modal-notes').value = '';
+  document.getElementById('modal-contacts').value = '';
+  // Pre-select type
+  document.getElementById('modal-type').value = 'Self-Storage';
+  document.getElementById('modal-convert-fields').style.display = 'block';
+  document.getElementById('modal-save-btn').textContent = '✅ Mark as Visited';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e){
+  if(!e || e.target===document.getElementById('modal-overlay'))
+    document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function saveModalVisit(){
+  const date = document.getElementById('modal-date').value;
+  const note = document.getElementById('modal-notes').value.trim();
+  if(!date){alert('Please select a date.'); return;}
+
+  if(modalMode === 'partner'){
+    const id = modalTargetId;
+    if(id===null||id===undefined) return;
+    if(!crmPartners[id].visits) crmPartners[id].visits=[];
+    crmPartners[id].visits.push({date,note});
+
+  } else if(modalMode === 'target-note'){
+    const s = unvisitedStorage[modalTargetStorageIdx];
+    if(!s.crmNotes) s.crmNotes = [];
+    s.crmNotes.push({date, note});
+    // Keep card open after saving
+    selectedCardId = `t-${modalTargetStorageIdx}`;
+
+  } else if(modalMode === 'target-convert'){
+    const s = unvisitedStorage[modalTargetStorageIdx];
+    const contacts = document.getElementById('modal-contacts').value.trim();
+    const type = document.getElementById('modal-type').value;
+    // Carry over any pre-existing notes
+    const existingNotes = (s.crmNotes||[]).map(n=>n.note).filter(Boolean).join(' | ');
+    const fullNote = [note, existingNotes].filter(Boolean).join(' | ');
+    // Build new partner object
+    const newPartner = {
+      name: s.name,
+      addr: s.addr,
+      lat: s.lat,
+      lng: s.lng,
+      type,
+      contacts,
+      visits: [{date, note: fullNote}],
+      followUpDays: 30
+    };
+    crmPartners.push(newPartner);
+    // Remove from unvisited & its map marker
+    unvisitedStorage.splice(modalTargetStorageIdx, 1);
+    // Rebuild unvisited map markers
+    rebuildUnvisitedMarkers();
+    selectedCardId = null;
+    // Switch to partners tab to show the new entry
+    currentTab = 'visited';
+    document.getElementById('tab-visited').classList.add('active');
+    document.getElementById('tab-targets').classList.remove('active');
+  }
+
+  document.getElementById('modal-overlay').classList.remove('open');
+  rebuildPartnerMarkers();
+  updateStats();
+  updateAlertBanner();
+  renderCRM();
+}
+
+function deleteTargetNote(realIdx, noteIdx, e){
+  e&&e.stopPropagation();
+  if(!confirm('Delete this note?')) return;
+  unvisitedStorage[realIdx].crmNotes.splice(noteIdx,1);
+  renderCRM();
+}
+
+function deleteVisit(partnerIdx, visitIdx, e){
+  e&&e.stopPropagation();
+  if(!confirm('Delete this visit entry?')) return;
+  crmPartners[partnerIdx].visits.splice(visitIdx,1);
+  rebuildPartnerMarkers();
+  updateStats();
+  updateAlertBanner();
+  renderCRM();
+}
+
+// Open CRM panel to a specific partner (called from map marker click)
+function openCRMToPartner(id){
+  switchTab('visited');
+  selectedCardId = id;
+  renderCRM();
+  if(window.innerWidth<=768) showMobileCRM();
+  setTimeout(()=>{const el=document.getElementById(`card-${id}`);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});},100);
+}
+
+// ═══════════════════════════════════════════════
+// MOBILE NAV
+// ═══════════════════════════════════════════════
+function showMobileCRM(){
+  document.getElementById('crm-panel').classList.add('mobile-open');
+  document.getElementById('topbar-crm-btn').style.display='none';
+  document.getElementById('topbar-map-btn').style.display='block';
+}
+function showMobileMap(){
+  document.getElementById('crm-panel').classList.remove('mobile-open');
+  document.getElementById('topbar-crm-btn').style.display='block';
+  document.getElementById('topbar-map-btn').style.display='none';
+  setTimeout(()=>map.invalidateSize(),350);
+}
+
+// ═══════════════════════════════════════════════
+// DATE HEADER
+// ═══════════════════════════════════════════════
+function setDateHeader(){
+  const d=new Date();
+  document.getElementById('crm-date').textContent=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+setDateHeader();
+rebuildPartnerMarkers();
+updateStats();
+updateAlertBanner();
+renderCRM();
+</script>
+</body>
+</html>
