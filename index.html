@@ -22,6 +22,7 @@
       document.getElementById('pw-gate').style.display='none';
       document.getElementById('app').style.display='flex';
       document.getElementById('topbar').style.display='';
+      // Let the browser paint the layout before telling Leaflet to resize
     } else {
       document.getElementById('pw-error').style.display='block';
       document.getElementById('pw-input').value='';
@@ -354,6 +355,44 @@ textarea.form-input{resize:none;min-height:56px;}
 .empty-state .es-icon{font-size:32px;margin-bottom:8px;}
 .empty-state p{font-size:13px;}
 
+/* ── CONTACT CARDS ── */
+.contact-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  margin-bottom:8px;overflow:hidden;cursor:pointer;transition:border-color .15s;
+}
+.contact-card:active{transform:scale(.99);}
+.contact-card.selected{border-color:var(--purple);}
+.contact-card-header{padding:11px 13px;display:flex;align-items:flex-start;gap:9px;}
+.contact-avatar{
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;
+  background:var(--purple-dim);border:2px solid var(--purple);color:var(--purple);
+  font-family:'Space Mono',monospace;
+}
+.contact-avatar.apt{background:var(--pink-dim);border-color:var(--pink);color:var(--pink);}
+.contact-avatar.storage{background:var(--blue-dim);border-color:var(--blue);color:var(--blue);}
+.contact-main{flex:1;min-width:0;}
+.contact-name{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.contact-title{font-size:11px;color:var(--text3);margin-top:1px;}
+.contact-company{font-size:11px;color:var(--text2);margin-top:2px;font-weight:500;}
+.contact-card-badges{display:flex;gap:5px;flex-wrap:wrap;padding:0 13px 10px 58px;}
+.contact-detail{
+  border-top:1px solid var(--border);padding:12px 13px;
+  background:var(--surface3);display:none;
+}
+.contact-detail.open{display:block;}
+.contact-li-btn{
+  display:flex;align-items:center;gap:6px;margin-top:8px;
+  background:#0a66c218;border:1px solid #0a66c240;color:#70a9e8;
+  border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;
+}
+.contact-li-btn:hover{background:#0a66c230;border-color:#0a66c260;}
+
+/* ── CONTACT FILTER CHIPS ── */
+.contact-type-filters{display:flex;gap:5px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px;}
+.contact-type-filters::-webkit-scrollbar{display:none;}
+
 /* ── SORT / FILTER ROW ── */
 .filter-row{display:flex;gap:5px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px;}
 .filter-row::-webkit-scrollbar{display:none;}
@@ -434,6 +473,10 @@ textarea.form-input{resize:none;min-height:56px;}
         <span class="leg-label">Apartments</span><span class="leg-count" id="lc-apt"></span>
       </div>
       <div class="leg-divider"></div>
+      <div class="leg-row" onclick="toggleLayer('apartments')" id="leg-apartments">
+        <div class="leg-icon" style="background:#0c2a3a;border:2px solid #38bdf8;">🏠</div>
+        <span class="leg-label">Apt Targets</span><span class="leg-count" id="lc-apartments"></span>
+      </div>
       <div class="leg-row" onclick="toggleLayer('unvisited')" id="leg-unvisited">
         <div class="leg-icon" style="background:#f59e0b22;border:2px solid var(--amber);">★</div>
         <span class="leg-label">Not Visited</span><span class="leg-count" id="lc-unvisited"></span>
@@ -469,6 +512,7 @@ textarea.form-input{resize:none;min-height:56px;}
       <div id="crm-tabs">
         <div class="crm-tab active" onclick="switchTab('visited')" id="tab-visited">✓ Partners</div>
         <div class="crm-tab" onclick="switchTab('targets')" id="tab-targets">★ Targets</div>
+        <div class="crm-tab" onclick="switchTab('contacts')" id="tab-contacts">👤 Contacts</div>
       </div>
 
       <!-- Search -->
@@ -583,41 +627,52 @@ const crmPartnersRaw=[
   {name:"Big Tex Storage (Heights)",addr:"730 E 11th St, Houston, TX 77008",lat:29.7905,lng:-95.3887,type:"Self-Storage",contacts:"Lisa Denton (gave card, older, slight TX accent, sweet but shoots straight)",visits:[{date:"2026-03-13",note:"Strong partnership potential. Left cow + 50 flyers."}],followUpDays:30},
   {name:"Community Self Storage",addr:"2515 Washington Ave, Houston, TX 77007",lat:29.7678,lng:-95.3849,type:"Self-Storage",contacts:"Tom (unhappy, older, part-time); Susan (older, gray hair); Sarah (younger, manager)",visits:[{date:"2026-03-13",note:"Has U-Hauls out front. Left cow + fewer flyers on front desk."}],followUpDays:30},
   {name:"BullsEye Storage",addr:"3200 W Dallas St, Houston, TX 77019",lat:29.7576,lng:-95.3993,type:"Self-Storage",contacts:"Joy (manager, Black, dreadlocks, really nice)",visits:[{date:"2026-03-13",note:"Left a lot of flyers and a cow."}],followUpDays:30}
+  ,{name:"Knoll Storage",addr:"1931 Knoll St, Houston, TX 77080",lat:29.8071,lng:-95.5100,type:"Self-Storage",contacts:"Lisa (phone only)",visits:[{date:"2026-03-16",note:"Talked to Lisa on the phone. Sent a picture of our flyer to her."}],followUpDays:30}
+  ,{name:"MAA Park Point (Apartments)",addr:"8850 Long Point Rd, Houston, TX 77055",lat:29.8045,lng:-95.5160,type:"Apartment/Storage",contacts:"Lisa (slightly bigger woman, sits on the right)",visits:[{date:"2026-03-16",note:"Told her the concept, she likes it. Gave her a cow and flyers."}],followUpDays:30}
+  ,{name:"Houston Mini Storage (Hollister)",addr:"1921 Hollister St, Houston, TX 77080",lat:29.8085,lng:-95.5074,type:"Self-Storage",contacts:"(Office closed when visited)",visits:[{date:"2026-03-16",note:"Office closed. Sent pictures of flyers through door/window."}],followUpDays:30}
+  ,{name:"Extra Space Storage (Long Point 8726)",addr:"8726 Long Point Rd, Houston, TX 77055",lat:29.8039,lng:-95.5054,type:"Self-Storage",contacts:"(Manager)",visits:[{date:"2026-03-16",note:"Not interested in marketing trailers. Said landscapers are 80% of their business."}],followUpDays:60}
+  ,{name:"Devon Self Storage (Gessner)",addr:"1918 Gessner Rd, Houston, TX 77080",lat:29.8070,lng:-95.5448,type:"Self-Storage",contacts:"Rae (Black woman, was wearing a Lil Wayne shirt)",visits:[{date:"2026-03-16",note:"Dropped flyers and a cow with Rae. Great energy."}],followUpDays:30}
+  ,{name:"SmartStop Self Storage (SW Fwy)",addr:"3130 Southwest Fwy, Houston, TX 77098",lat:29.7275,lng:-95.4163,type:"Self-Storage",contacts:"Saul",visits:[{date:"2026-03-16",note:"Saul loved the concept — says people are always asking him for trailers. Gave him a ton of flyers and a cow. Strong partnership potential."}],followUpDays:14}
+  ,{name:"Public Storage (Long Point 9223)",addr:"9223 Long Point Rd, Houston, TX 77055",lat:29.7992,lng:-95.5157,type:"Self-Storage",contacts:"T (younger Black woman, really cool)",visits:[{date:"2026-03-16",note:"T was great — dropped flyers and a cow."}],followUpDays:30}
+  ,{name:"Storage Depot (Ruland Rd)",addr:"9021 Ruland Rd, Houston, TX 77055",lat:29.7978,lng:-95.5121,type:"Self-Storage",contacts:"(No office on site)",visits:[{date:"2026-03-16",note:"No office — unmanned facility. No partnership possible."}],followUpDays:180}
+  ,{name:"Amelia Apartments",addr:"Houston, TX — near Long Point Rd",lat:29.8040,lng:-95.5100,type:"Apartment/Storage",contacts:"(Leasing office)",visits:[{date:"2026-03-16",note:"Not interested."}],followUpDays:180}
+  ,{name:"Big Tex Storage (Richmond Ave)",addr:"1810 Richmond Ave, Houston, TX 77098",lat:29.7345,lng:-95.4048,type:"Self-Storage",contacts:"Kaitlyn (younger woman at front desk, quiet but cool)",visits:[{date:"2026-03-16",note:"Left flyers with Kaitlyn. Quiet but seemed receptive."}],followUpDays:30}
+  ,{name:"Public Storage (Greenbriar 4121)",addr:"4121 Greenbriar Dr, Houston, TX 77098",lat:29.7290,lng:-95.4117,type:"Self-Storage",contacts:"(Doors locked during visit)",visits:[{date:"2026-03-16",note:"Doors locked but normally staffed — come back."}],followUpDays:14}
+  ,{name:"Public Storage (Westheimer 3703)",addr:"3703 Westheimer Rd, Houston, TX 77027",lat:29.7414,lng:-95.4379,type:"Self-Storage",contacts:"(Doors locked during visit)",visits:[{date:"2026-03-16",note:"Doors locked — looked like people could be in there. Come back."}],followUpDays:14}
+  ,{name:"Public Storage (Westheimer 2006)",addr:"2006 Westheimer Rd, Houston, TX 77098",lat:29.7432,lng:-95.4083,type:"Self-Storage",contacts:"(Fully self-serve, no staff)",visits:[{date:"2026-03-16",note:"Fully self-serve — no staff. Left flyer in window."}],followUpDays:90}
+  ,{name:"Public Storage (Westheimer 3732)",addr:"3732 Westheimer Rd, Houston, TX 77027",lat:29.7419,lng:-95.4395,type:"Self-Storage",contacts:"Andrew (front desk, really chill)",visits:[{date:"2026-03-16",note:"Andrew liked the concept and will hand out flyers."}],followUpDays:30}
+  ,{name:"Devon Self Storage (W 43rd)",addr:"6300 W 43rd St, Houston, TX 77092",lat:29.8333,lng:-95.4823,type:"Self-Storage",contacts:"Jaylen Brown (Hispanic girl, was drinking matté)",visits:[{date:"2026-03-17",note:"Explained concept, dropped flyers and cow. Jaylen was receptive."}],followUpDays:30}
+  ,{name:"Public Storage (Bingle 5707)",addr:"5707 Bingle Rd, Houston, TX 77092",lat:29.8484,lng:-95.4899,type:"Self-Storage",contacts:"Drea (front desk) — T's sister! T works at Public Storage Long Point",visits:[{date:"2026-03-17",note:"Drea is T's sister from Public Storage Long Point — both cool. Dropped flyers and cow."}],followUpDays:30}
+  ,{name:"55 Fifty at Northwest Crossing",addr:"5550 Bingle Rd, Houston, TX 77092",lat:29.8446,lng:-95.4876,type:"Apartment/Storage",contacts:"Grant Pickens (gave card, cool Black guy with cool glasses)",visits:[{date:"2026-03-17",note:"Explained the concept to Grant. He gave his card. Dropped flyers."}],followUpDays:30}
+  ,{name:"Public Storage (Milwee 5323)",addr:"5323 Milwee St, Houston, TX 77092",lat:29.8222,lng:-95.4689,type:"Self-Storage",contacts:"Quayvian (shorter bald Black guy, pretty chill)",visits:[{date:"2026-03-17",note:"Dropped flyers with Quayvian."}],followUpDays:30}
+  ,{name:"The Crossings",addr:"4200 Lockfield St, Houston, TX 77092",lat:29.8312,lng:-95.4876,type:"Apartment/Storage",contacts:"Gretel (younger, Hispanic, black hair); Edith (Hispanic, black hair)",visits:[{date:"2026-03-17",note:"Left flyers and cow with Gretel and Edith. Both were receptive."}],followUpDays:30}
+  ,{name:"Public Storage (Milwee 5323)",addr:"5323 Milwee St, Houston, TX 77092",lat:29.8222,lng:-95.4689,type:"Self-Storage",contacts:"Quayvian (shorter bald Black guy, pretty chill)",visits:[{date:"2026-03-17",note:"Dropped flyers with Quayvian."}],followUpDays:30}
+  ,{name:"Milwee Street Apartments",addr:"5310 Milwee St, Houston, TX 77092",lat:29.8225,lng:-95.4678,type:"Apartment/Storage",contacts:"Nayeli (leasing agent)",visits:[{date:"2026-03-17",note:"Spoke with Nayeli, leasing agent. Dropped flyers."}],followUpDays:30}
+  ,{name:"Creekwood Apartments",addr:"11911 Northwest Fwy, Houston, TX 77092",lat:29.8288,lng:-95.4812,type:"Apartment/Storage",contacts:"Maria (manager, not at front desk); front desk lady also nice",visits:[{date:"2026-03-17",note:"Met Maria the manager and friendly front desk. Dropped flyers and cow."}],followUpDays:30}
+  ,{name:"Your Storage Place (NW Fwy)",addr:"10901 Northwest Fwy, Houston, TX 77092",lat:29.8166,lng:-95.4681,type:"Self-Storage",contacts:"Laura (younger front desk girl)",visits:[{date:"2026-03-17",note:"Has U-Haul trucks but Laura said trailers would help them — willing to market our stuff. Customers show ID and she gives them U-Haul key. Good partner despite U-Haul presence. Left flyers."}],followUpDays:30}
+  ,{name:"Extra Space (Hempstead)",addr:"10640 Hempstead Rd, Houston, TX 77092",lat:29.8106,lng:-95.4719,type:"Self-Storage",contacts:"Pedro (manager)",visits:[{date:"2026-03-17",note:"Pedro said he saw our trailer off Shepherd. Left flyers — no cow."}],followUpDays:30}
+  ,{name:"Storage Rentals of America",addr:"4100 W 34th St, Houston, TX 77092",lat:29.8179,lng:-95.4521,type:"Self-Storage",contacts:"Alicia (manager — awesome, loves to talk, previously worked in storage in Louisiana)",visits:[{date:"2026-03-17",note:"PREMIUM PARTNER — ~1,000 Google reviews. Long convo with Alicia. Got rid of U-Haul due to bad customer service. Says our flyers will fly off the counter — will call when she runs out. Gave her my card. HIGH priority follow-up in 2 weeks."}],followUpDays:14}
 ];
 
 const unvisitedStorage=[
   {name:"North Shepherd Mini Storage",addr:"5152 N Shepherd Dr, Houston, TX 77018",lat:29.8404,lng:-95.4104,rating:4.6},
   {name:"Houston Self Storage",addr:"215 Wynne St, Houston, TX 77009",lat:29.8060,lng:-95.3717,rating:4.9,note:"Closed Thu & Fri — plan accordingly"},
-  {name:"Big Tex Storage (Richmond)",addr:"1810 Richmond Ave, Houston, TX 77098",lat:29.7345,lng:-95.4048,rating:4.8},
-  {name:"Public Storage (Greenbriar)",addr:"4121 Greenbriar Dr, Houston, TX 77098",lat:29.7290,lng:-95.4117,rating:4.8},
-  {name:"Public Storage (Westheimer 2006)",addr:"2006 Westheimer Rd, Houston, TX 77098",lat:29.7432,lng:-95.4083,rating:4.6},
   {name:"SmartStop (Holcombe)",addr:"2412 W Holcombe Blvd, Houston, TX 77030",lat:29.7068,lng:-95.4155,rating:4.8},
   {name:"Your Storage Place (Westheimer)",addr:"9333 Westheimer Rd, Houston, TX 77063",lat:29.7370,lng:-95.5282,rating:4.6},
-  {name:"Public Storage (Westheimer 3703)",addr:"3703 Westheimer Rd, Houston, TX 77027",lat:29.7414,lng:-95.4379,rating:4.8},
   {name:"Public Storage (Westheimer 8989)",addr:"8989 Westheimer Rd, Houston, TX 77063",lat:29.7369,lng:-95.5226,rating:4.6},
   {name:"Public Storage (Westheimer 5615)",addr:"5615 Westheimer Rd, Houston, TX 77056",lat:29.7375,lng:-95.4749,rating:4.7},
   {name:"Public Storage (Westheimer 9526)",addr:"9526 Westheimer Rd, Houston, TX 77063",lat:29.7379,lng:-95.5345,rating:4.7},
-  {name:"Public Storage (Westheimer 3732)",addr:"3732 Westheimer Rd, Houston, TX 77027",lat:29.7419,lng:-95.4395,rating:4.7},
   {name:"CubeSmart (Westheimer 7939)",addr:"7939 Westheimer Rd, Houston, TX 77063",lat:29.7371,lng:-95.5081,rating:4.8},
   {name:"Right Move Storage (Royal Oaks)",addr:"12121 Westheimer Rd, Houston, TX 77077",lat:29.7352,lng:-95.5934,rating:4.8},
   {name:"CubeSmart (Westheimer 8252)",addr:"8252 Westheimer Rd, Houston, TX 77063",lat:29.7385,lng:-95.5127,rating:4.8},
-  {name:"Your Storage Place (NW Fwy)",addr:"10901 Northwest Fwy, Houston, TX 77092",lat:29.8166,lng:-95.4681,rating:4.6},
   {name:"CubeSmart (Mangum)",addr:"3735 Mangum Rd, Houston, TX 77092",lat:29.8233,lng:-95.4626,rating:4.6},
-  {name:"Devon Self Storage (43rd)",addr:"6300 W 43rd St, Houston, TX 77092",lat:29.8333,lng:-95.4823,rating:4.9},
   {name:"Public Storage (Mangum)",addr:"2415 Mangum Rd, Houston, TX 77092",lat:29.8093,lng:-95.4596,rating:4.7},
-  {name:"Public Storage (Milwee)",addr:"5323 Milwee St, Houston, TX 77092",lat:29.8222,lng:-95.4689,rating:4.7},
-  {name:"Public Storage (Bingle)",addr:"5707 Bingle Rd, Houston, TX 77092",lat:29.8484,lng:-95.4899,rating:4.8},
-  {name:"Storage Rentals of America",addr:"4100 W 34th St, Houston, TX 77092",lat:29.8179,lng:-95.4521,rating:4.9},
   {name:"Storage Solutions Plus (Sherwood)",addr:"4622 Sherwood Ln, Houston, TX 77092",lat:29.8142,lng:-95.4585,rating:4.7},
-  {name:"Extra Space (Hempstead)",addr:"10640 Hempstead Rd, Houston, TX 77092",lat:29.8106,lng:-95.4719,rating:4.6},
   {name:"Public Storage (NW Fwy 14050)",addr:"14050 Northwest Fwy, Houston, TX 77040",lat:29.8561,lng:-95.5168,rating:4.8},
   {name:"Storage King USA (Long Point)",addr:"7723 Long Point Rd, Houston, TX 77055",lat:29.8018,lng:-95.4818,rating:4.6},
-  {name:"Public Storage (Long Point)",addr:"9223 Long Point Rd, Houston, TX 77055",lat:29.7992,lng:-95.5157,rating:4.7},
-  {name:"Extra Space (Long Point)",addr:"8726 Long Point Rd, Houston, TX 77055",lat:29.8039,lng:-95.5054,rating:4.9},
   {name:"Storage 77055",addr:"1239 Cedar Post Ln, Houston, TX 77055",lat:29.7910,lng:-95.5248,rating:5.0},
   {name:"Box Self Storage",addr:"1508 Bingle Rd, Houston, TX 77055",lat:29.7969,lng:-95.4998,rating:4.7},
   {name:"Extra Space (Wirt Rd)",addr:"2150 Wirt Rd, Houston, TX 77055",lat:29.8116,lng:-95.4849,rating:4.5},
-  {name:"Storage Depot (Ruland)",addr:"9021 Ruland Rd, Houston, TX 77055",lat:29.7978,lng:-95.5121,rating:3.9},
   {name:"Public Storage (Beechnut 10220)",addr:"10220 Beechnut St, Houston, TX 77072",lat:29.6902,lng:-95.5623,rating:4.8},
   {name:"Extra Space (Beechnut 11702)",addr:"11702 Beechnut St, Houston, TX 77072",lat:29.6892,lng:-95.5850,rating:4.8},
   {name:"Bellaire-Hillcroft Storage",addr:"6117 Edgemoor Dr, Houston, TX 77081",lat:29.7032,lng:-95.4898,rating:4.0},
@@ -733,10 +788,62 @@ function urgencyLevel(p){
   return 'ok';
 }
 
+
+// ═══════════════════════════════════════════════
+// APARTMENT TARGETS DATA
+// ═══════════════════════════════════════════════
+const apartmentTargets = [
+  // Westheimer / Galleria cluster
+  {name:"7979 Westheimer",addr:"7979 Westheimer Rd, Houston, TX 77063",lat:29.7362,lng:-95.5094,rating:3.6,corral:"Tanglewilde Center"},
+  {name:"88twenty Apartments",addr:"8820 Westheimer Rd, Houston, TX 77063",lat:29.7382,lng:-95.5202,rating:3.9,corral:"Tanglewilde Center"},
+  {name:"Marquis on Westheimer",addr:"2742 Jeanetta St, Houston, TX 77063",lat:29.7359,lng:-95.5260,rating:3.8,corral:"Tanglewilde Center"},
+  {name:"The Westheimer Apartments",addr:"2001 Westheimer Rd, Houston, TX 77098",lat:29.7419,lng:-95.4088,rating:4.4,corral:"Fountain View Drive"},
+  {name:"Rone Residences",addr:"2311 Westheimer Rd, Houston, TX 77098",lat:29.7422,lng:-95.4157,rating:4.4,corral:"Fountain View Drive"},
+
+  // Bingle Crossing / NW Houston cluster
+  {name:"The Park at Malaga",addr:"4300 Sherwood Ln, Houston, TX 77092",lat:29.8140,lng:-95.4532,rating:4.6,corral:"Bingle Crossing"},
+  {name:"Hidden Park Apartments",addr:"4225 Mangum Rd, Houston, TX 77092",lat:29.8302,lng:-95.4632,rating:4.7,corral:"Bingle Crossing"},
+  {name:"The Court at Oak Forest",addr:"4102 Mangum Rd, Houston, TX 77092",lat:29.8280,lng:-95.4614,rating:4.2,corral:"Bingle Crossing"},
+  {name:"Montabella at Oak Forest",addr:"4000 W 34th St, Houston, TX 77092",lat:29.8174,lng:-95.4500,rating:4.1,corral:"Bingle Crossing"},
+  {name:"Pepper Tree Manor",addr:"5950 Antoine Dr, Houston, TX 77091",lat:29.8523,lng:-95.4700,rating:4.5,corral:"Bingle Crossing"},
+  {name:"Casa Rosa Apartments",addr:"5555 Antoine Dr, Houston, TX 77091",lat:29.8447,lng:-95.4739,rating:4.3,corral:"Bingle Crossing"},
+  // Spring Branch / Spring Valley cluster
+  {name:"Cedar Branch Apartments",addr:"1217 Blalock Rd, Houston, TX 77055",lat:29.7900,lng:-95.5228,rating:4.7,corral:"Oak Village"},
+  {name:"Leaf Hollow Apartments",addr:"1760 Campbell Rd, Houston, TX 77080",lat:29.8032,lng:-95.5157,rating:4.8,corral:"Kempwood"},
+  {name:"Ashford Glens Apartments",addr:"1502 Pech Rd, Houston, TX 77055",lat:29.7969,lng:-95.4949,rating:4.4,corral:"Oak Village"},
+  {name:"Lofts at Spring Lake",addr:"2217 Hollister Rd, Houston, TX 77080",lat:29.8126,lng:-95.5104,rating:4.5,corral:"Kempwood"},
+  {name:"Estates at Spring Branch",addr:"9001 Kempwood Dr, Houston, TX 77080",lat:29.8208,lng:-95.5145,rating:4.0,corral:"Kempwood"},
+  {name:"Cerca Demi Apartamentos",addr:"3401 Blalock Rd, Houston, TX 77080",lat:29.8241,lng:-95.5245,rating:3.7,corral:"Kempwood"},
+  {name:"MAA Park Point",addr:"8850 Long Point Rd, Houston, TX 77055",lat:29.8045,lng:-95.5160,rating:4.2,corral:"Oak Village"},
+  // Memorial / Energy Corridor cluster
+  {name:"Olympus at Memorial",addr:"777 S Mayde Creek Dr, Houston, TX 77079",lat:29.7766,lng:-95.6252,rating:4.6,corral:"Memorial at Kirkwood"},
+  {name:"Domain Memorial Townhomes",addr:"14800 Memorial Dr, Houston, TX 77079",lat:29.7719,lng:-95.6125,rating:4.2,corral:"Memorial at Kirkwood"},
+  {name:"Memorial West Apartments",addr:"14900 Memorial Dr, Houston, TX 77079",lat:29.7731,lng:-95.6135,rating:4.0,corral:"Memorial at Kirkwood"},
+  {name:"Park on Memorial",addr:"14855 Memorial Dr, Houston, TX 77079",lat:29.7720,lng:-95.6159,rating:3.8,corral:"Memorial at Kirkwood"},
+  {name:"600 Nottingham Apartments",addr:"600 Nottingham Oaks Trail, Houston, TX 77079",lat:29.7698,lng:-95.6119,rating:3.9,corral:"Memorial at Kirkwood"},
+  // Katy cluster
+  {name:"The Grand at LaCenterra",addr:"2727 Commercial Center Blvd, Katy, TX 77494",lat:29.7390,lng:-95.7744,rating:4.5,corral:"Living Spaces - Katy"},
+  {name:"The Lakes at Cinco Ranch",addr:"2855 Commercial Center Blvd, Katy, TX 77494",lat:29.7375,lng:-95.7752,rating:4.2,corral:"Living Spaces - Katy"},
+  {name:"Marquis Seven Meadows",addr:"6207 Katy-Gaston Rd, Katy, TX 77494",lat:29.7071,lng:-95.8004,rating:4.7,corral:"Living Spaces - Katy"},
+  {name:"Marquis Seven Lakes",addr:"6800 Gaston Rd, Katy, TX 77494",lat:29.7012,lng:-95.7837,rating:4.6,corral:"Living Spaces - Katy"},
+  {name:"Katy Ranch Apartments",addr:"24929 Katy Ranch Rd, Katy, TX 77494",lat:29.7815,lng:-95.7943,rating:3.9,corral:"Living Spaces - Katy"},
+  // Cypress cluster
+  {name:"Alys Crossing",addr:"20510 Cypress Plaza Pkwy, Cypress, TX 77433",lat:29.9285,lng:-95.7226,rating:4.3,corral:"Fairfield Marketplace"},
+  {name:"Highpark",addr:"20515 Cypress Plaza Pkwy, Cypress, TX 77433",lat:29.9270,lng:-95.7232,rating:4.3,corral:"Fairfield Marketplace"},
+  {name:"MAA Grand Cypress",addr:"14144 Mueschke Rd, Cypress, TX 77433",lat:29.9802,lng:-95.7150,rating:4.4,corral:"Fairfield Marketplace"},
+  {name:"Cortland North Haven",addr:"17802 Mound Rd, Cypress, TX 77433",lat:29.9660,lng:-95.6967,rating:4.7,corral:"Fairfield Marketplace"},
+  {name:"Alexan Cypress Creek",addr:"9302 Fry Rd, Cypress, TX 77433",lat:29.9200,lng:-95.7260,rating:4.0,corral:"Fairfield Marketplace"},
+  // FM 1960 / Champions cluster
+  {name:"Marquis Champions Forest",addr:"5959 FM 1960 Rd W, Houston, TX 77069",lat:29.9741,lng:-95.5207,rating:3.9,corral:"Spring Cypress Village"},
+  {name:"Willow Bend Apartments (N)",addr:"13949 Bammel North Houston Rd, Houston, TX 77066",lat:29.9786,lng:-95.4931,rating:4.4,corral:"Willowbrook Pavilion"},
+  // Humble cluster
+  {name:"Willowbend",addr:"9393 FM 1960 Bypass W, Humble, TX 77338",lat:30.0072,lng:-95.2864,rating:4.0,corral:"Living Spaces - Humble"},
+];
+
 // ═══════════════════════════════════════════════
 // MAP SETUP
 // ═══════════════════════════════════════════════
-const map = L.map('map',{zoomControl:true,attributionControl:false}).setView([29.80,-95.48],11);
+const map=L.map('map',{zoomControl:true,attributionControl:false}).setView([29.80,-95.48],11);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);
 
 function mkIcon(e,bg,border,s=34){
@@ -752,6 +859,7 @@ const icons = {
   home: mkIcon('🏡','#1a0a2e','#f97316',36),
   overdue: mkIcon('!','#3f0000','#ef4444',32),
   soon: mkIcon('✓','#1a1200','#f59e0b',32),
+  apartment: mkIcon('🏠','#0c2a3a','#38bdf8',28),
 };
 
 const layers = {
@@ -762,7 +870,8 @@ const layers = {
   apt: L.layerGroup().addTo(map),
   unvisited: L.layerGroup().addTo(map),
   radius: L.layerGroup().addTo(map),
-  home: L.layerGroup().addTo(map)
+  home: L.layerGroup().addTo(map),
+  apartments: L.layerGroup().addTo(map)
 };
 const layerVisible = {};
 Object.keys(layers).forEach(k => layerVisible[k] = true);
@@ -774,6 +883,16 @@ const activeCorrals = corrals.filter(c => c.active);
 L.marker([HOME.lat, HOME.lng], {icon: icons.home})
   .bindPopup(`<b>🏡 Home Base</b><br><span class="pop-addr">${HOME.addr}</span>`)
   .addTo(layers.home);
+
+// Apartment markers
+apartmentTargets.forEach((a,i) => {
+  const ratingColor = a.rating >= 4.5 ? '#4ade80' : a.rating >= 4.0 ? '#fbbf24' : '#f87171';
+  const m = L.marker([a.lat,a.lng],{icon:icons.apartment})
+    .bindPopup(`<b>${a.name}</b><br><span class="pop-addr">${a.addr}</span><br><span class="pop-tag" style="background:#0c2a3a;color:#38bdf8;border:1px solid #38bdf844;">APARTMENT TARGET</span><br><span style="color:${ratingColor};font-size:12px;">★ ${a.rating}</span><br><span class="pop-nearest">Near: ${a.corral}</span>`)
+    .addTo(layers.apartments);
+  allMapMarkers.push({marker:m,name:a.name,addr:a.addr,layer:'apartments'});
+});
+
 
 // Corrals
 corrals.forEach(c => {
@@ -890,7 +1009,7 @@ function updateStats(){
   // Legend counts
   const cnt = {};
   allMapMarkers.forEach(m=>{cnt[m.layer]=(cnt[m.layer]||0)+1;});
-  ['corralActive','corralInactive','visited','auto','apt','unvisited'].forEach(k=>{
+  ['corralActive','corralInactive','visited','auto','apt','unvisited','apartments'].forEach(k=>{
     const el=document.getElementById('lc-'+k);if(el) el.textContent=cnt[k]||0;
   });
 }
@@ -919,17 +1038,22 @@ function updateAlertBanner(){
 function switchTab(tab){
   currentTab = tab;
   selectedCardId = null;
+  selectedContactId = null;
   document.getElementById('tab-visited').classList.toggle('active', tab==='visited');
   document.getElementById('tab-targets').classList.toggle('active', tab==='targets');
+  document.getElementById('tab-contacts').classList.toggle('active', tab==='contacts');
+  // Show/hide alert banner only on Partners tab
+  document.getElementById('alert-banner').style.display = tab==='visited' ? '' : 'none';
   renderCRM();
 }
 
-function filterCRM(q){ crmSearchQ=q; renderCRM(); }
+function filterCRM(q){ crmSearchQ=q; contactSearchQ=q; renderCRM(); }
 
 function renderCRM(){
   const body = document.getElementById('crm-body');
   if(currentTab==='visited') renderVisited(body);
-  else renderTargets(body);
+  else if(currentTab==='targets') renderTargets(body);
+  else renderContacts(body);
 }
 
 function typeIcon(type){
@@ -1289,6 +1413,297 @@ function showMobileMap(){
 function setDateHeader(){
   const d=new Date();
   document.getElementById('crm-date').textContent=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+// ═══════════════════════════════════════════════
+// CONTACTS DATA
+// ═══════════════════════════════════════════════
+const contactsData = [
+
+  // ══════════════════════════════════════
+  // STORAGE CHAINS — LinkedIn Verified
+  // ══════════════════════════════════════
+
+  // PUBLIC STORAGE
+  {name:"Matt Greene", title:"District Manager", company:"Public Storage", category:"storage", chain:"Public Storage",
+   locations:"Multiple Houston locations",
+   li:"https://www.linkedin.com/in/matt-greene-6a1a62137/",
+   notes:"500+ connections. Confirmed DM Houston. Already messaged on LinkedIn."},
+  {name:"Synda Gaglio", title:"District Manager", company:"Public Storage", category:"storage", chain:"Public Storage",
+   locations:"Houston market",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Synda+Gaglio+Public+Storage",
+   notes:"Confirmed current DM at Public Storage Houston. Also runs The Mink business."},
+  {name:"Misha McClain", title:"District Manager", company:"Public Storage", category:"storage", chain:"Public Storage",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Misha+McClain+Public+Storage",
+   notes:"Current DM at Public Storage Houston. Previously Regional Director of Ops at Pei Wei."},
+  {name:"Ralph Corral", title:"District Manager", company:"Public Storage", category:"storage", chain:"Public Storage",
+   locations:"United States / Houston area",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Ralph+Corral+Public+Storage",
+   notes:"Confirmed current DM at Public Storage. Houston market."},
+
+  // EXTRA SPACE STORAGE
+  {name:"Kevin Morrell", title:"District Manager", company:"Extra Space Storage", category:"storage", chain:"Extra Space Storage",
+   locations:"Multiple Houston locations",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Kevin+Morrell+Extra+Space+Storage",
+   notes:"Confirmed DM Houston. Proactive operations focus. Strong outreach target."},
+  {name:"Ljeonora Berisha", title:"District Team Lead", company:"Extra Space Storage", category:"storage", chain:"Extra Space Storage",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Ljeonora+Berisha+Extra+Space+Storage",
+   notes:"District Team Lead = DM equivalent at Extra Space. Houston-based."},
+  {name:"Gena Taylor", title:"District Team Lead", company:"Extra Space Storage", category:"storage", chain:"Extra Space Storage",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Gena+Taylor+Extra+Space+Storage",
+   notes:"District Team Lead, Houston. Currently listed as Store Manager."},
+  {name:"Sunny Moore", title:"District Team Lead", company:"Extra Space Storage", category:"storage", chain:"Extra Space Storage",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Sunny+Moore+Extra+Space+Storage",
+   notes:"District Team Lead, Houston. Past: Property Manager at Extra Space."},
+  {name:"Victor F.", title:"District Team Lead", company:"Extra Space Storage", category:"storage", chain:"Extra Space Storage",
+   locations:"Greater Houston",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Victor+Extra+Space+Storage+District+Team+Lead+Houston",
+   notes:"District Team Lead Greater Houston. LinkedIn profile partially private."},
+  {name:"Jameil Turner", title:"District Team Lead", company:"Extra Space Storage", category:"storage", chain:"Extra Space Storage",
+   locations:"Greater Houston",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Jameil+Turner+Extra+Space+Storage",
+   notes:"Current District Team Lead at Extra Space Storage. Greater Houston."},
+
+  // CUBESMART
+  {name:"Doug Johnson", title:"District Manager", company:"CubeSmart", category:"storage", chain:"CubeSmart",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Doug+Johnson+CubeSmart",
+   notes:"Multi-Unit Ops & Sales Manager emphasis. Confirmed current DM Houston."},
+  {name:"Yaditzel Raudales", title:"District Manager", company:"CubeSmart", category:"storage", chain:"CubeSmart",
+   locations:"Greater Houston",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Yaditzel+Raudales+CubeSmart",
+   notes:"10+ years self-storage management. Confirmed DM Greater Houston."},
+  {name:"Jesse Hopson", title:"District Manager", company:"CubeSmart Self Storage", category:"storage", chain:"CubeSmart",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Jesse+Hopson+CubeSmart",
+   notes:"Confirmed DM at CubeSmart Self Storage Houston. Strong outreach target."},
+  {name:"Brian L. Serafine", title:"District Manager", company:"CubeSmart", category:"storage", chain:"CubeSmart",
+   locations:"Greater Houston",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Brian+Serafine+CubeSmart",
+   notes:"Confirmed current DM at CubeSmart Greater Houston. #CubeSmartProud."},
+  {name:"Yasar Khan", title:"Senior Divisional Vice President", company:"CubeSmart", category:"storage", chain:"CubeSmart",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Yasar+Khan+CubeSmart+Houston",
+   notes:"🌟 SENIOR EXEC — SVP level at CubeSmart, Houston. Past DM. Escalation contact if DM outreach stalls. High value."},
+  {name:"Ravinder Sethi", title:"Division Vice President", company:"CubeSmart", category:"storage", chain:"CubeSmart",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Ravinder+Sethi+CubeSmart",
+   notes:"🌟 SENIOR EXEC — Division VP at CubeSmart Houston. Past DM. Top-level escalation contact."},
+
+  // SMARTSTOP
+  {name:"Bethany Dalton", title:"District Manager", company:"SmartStop Self Storage", category:"storage", chain:"SmartStop",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Bethany+Dalton+SmartStop+Self+Storage",
+   notes:"Only confirmed DM for SmartStop Houston. Key contact — SW Fwy location already visited (Saul loved the concept)."},
+
+  // DEVON SELF STORAGE
+  {name:"Keith Haberstroh", title:"Division Vice President of Operations", company:"Devon Self Storage", category:"storage", chain:"Devon Self Storage",
+   locations:"Spring, Texas (covers Houston metro)",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Keith+Haberstroh+Devon+Self+Storage",
+   notes:"🌟 SENIOR EXEC — Division VP of Operations, Devon Self Storage. Spring TX. Top contact for all Devon Houston locations (Gessner, W 43rd, Hwy 6, Conroe)."},
+
+  // MORNINGSTAR STORAGE
+  {name:"Cesar (Owner)", title:"Owner / Operator", company:"Morningstar Storage", category:"storage", chain:"Morningstar Storage",
+   locations:"4495 Katy Fwy + FM 529 + Greenhouse Rd, Houston",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Morningstar+Storage+Houston",
+   notes:"🔥 PREMIUM PARTNER — already visited 3/10. Wants to partner. 8 Houston facilities, sold 4. Offering trailer parking $100-200/mo. Promo: 4 free hours for first-time renters. Confirm pitch w/ Michael."},
+
+  // STORAGE RENTALS OF AMERICA
+  {name:"Alicia", title:"Property Manager", company:"Storage Rentals of America", category:"storage", chain:"Storage Rentals of America",
+   locations:"4100 W 34th St, Houston TX 77092",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Storage+Rentals+America+Houston+manager",
+   notes:"🔥 PREMIUM PARTNER — ~1,000 Google reviews. Ditched U-Haul. Said flyers will fly off counter. Will call when she runs low. HIGH PRIORITY follow-up 2 weeks from 3/17."},
+
+  // BIG TEX STORAGE
+  {name:"Lisa Denton", title:"Property Manager", company:"Big Tex Storage", category:"storage", chain:"Big Tex Storage",
+   locations:"730 E 11th St (Heights) + 1810 Richmond Ave",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Lisa+Denton+Big+Tex+Storage",
+   notes:"Gave card on 3/13. Older, slight TX accent, direct. Strong partnership potential for both Houston locations."},
+
+  // ══════════════════════════════════════
+  // APARTMENT MANAGEMENT — LinkedIn Verified
+  // ══════════════════════════════════════
+
+  // MAA
+  {name:"Cliff Koterwas", title:"Regional Vice President", company:"MAA (Mid-America Apartment Communities)", category:"apartment", mgmtCompany:"MAA",
+   locations:"Greater Houston — MAA Park Point (8850 Long Point Rd) + other Houston properties",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Cliff+Koterwas+MAA+Mid-America",
+   notes:"🌟 Confirmed Regional VP at MAA, Greater Houston. MAA Park Point visited 3/16 — leasing agent Lisa liked concept. Cliff is the right corporate-level contact to approve trailer parking across all MAA Houston assets."},
+
+  // GREYSTAR
+  {name:"Ashley Ralph", title:"Regional Property Manager", company:"Greystar", category:"apartment", mgmtCompany:"Greystar",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Ashley+Ralph+Greystar+Houston",
+   notes:"Confirmed Regional PM at Greystar Houston. MBA. 2nd connection — easier to reach. Greystar manages many Houston communities across our target markets."},
+  {name:"Jeff Hope", title:"Sr. Regional Property Manager", company:"Greystar", category:"apartment", mgmtCompany:"Greystar",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Jeff+Hope+Greystar+Houston",
+   notes:"Senior Regional PM at Greystar Houston. CPM, CAPS certified. Strong decision-making authority."},
+  {name:"Kristi Kohls", title:"Senior Regional Property Manager", company:"Greystar", category:"apartment", mgmtCompany:"Greystar",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Kristi+Kohls+Greystar+Houston",
+   notes:"Senior RPM + RISE Mentor at Greystar Houston. CPM certified. Influential across portfolio."},
+  {name:"Christy Boehnke", title:"Managing Director, Asset Management", company:"Greystar", category:"apartment", mgmtCompany:"Greystar",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Christy+Boehnke+Greystar+Houston",
+   notes:"🌟 SENIOR EXEC — Managing Director Asset Management at Greystar Houston. Past Sr. Director Development & Asset Mgmt. Highest-value Greystar contact."},
+  {name:"Hunter Neal", title:"Asset Manager", company:"Greystar", category:"apartment", mgmtCompany:"Greystar",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Hunter+Neal+Greystar+Houston",
+   notes:"Development Asset Manager at Greystar Houston. Direct asset management role."},
+
+  // CAMDEN PROPERTY TRUST
+  {name:"Amy Funk", title:"Regional Vice President / VP Real Estate Investments", company:"Camden Property Trust", category:"apartment", mgmtCompany:"Camden",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Amy+Funk+Camden+Property+Trust+Houston",
+   notes:"🌟 SENIOR EXEC — VP Real Estate + Regional VP at Camden Houston. 2nd connection. Camden is Houston HQ'd REIT with large Houston portfolio. Top contact."},
+  {name:"Mike Zimmerman", title:"Vice President of Asset Management", company:"Camden Property Trust", category:"apartment", mgmtCompany:"Camden",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Mike+Zimmerman+Camden+Property+Trust",
+   notes:"🌟 VP of Asset Management at Camden Houston. Direct asset management authority. Key contact for trailer parking approval across Camden portfolio."},
+
+  // CORTLAND
+  {name:"Mindi Hill", title:"Managing Director (TX/TN/AL)", company:"Cortland", category:"apartment", mgmtCompany:"Cortland",
+   locations:"Houston, Texas — oversees TX portfolio",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Mindi+Hill+Cortland+Houston",
+   notes:"🌟 Managing Director at Cortland for TX/TN/AL. CPM certified. Manages Cortland North Haven (Cypress, near Fairfield Marketplace corral, rated 4.7). One contact covers all Cortland TX properties."},
+
+  // WILLOW BRIDGE (formerly Lincoln Property)
+  {name:"Marsha Baker", title:"Regional Property Manager", company:"Willow Bridge Property Company", category:"apartment", mgmtCompany:"Willow Bridge",
+   locations:"Greater Houston",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Marsha+Baker+Willow+Bridge+Property",
+   notes:"Regional PM at Willow Bridge Houston. CPM certified. Manages Marquis-branded properties: Champions Forest, Seven Meadows, Seven Lakes, Westheimer — one contact unlocks 4+ properties."},
+  {name:"Crystal Ganakes", title:"Regional Property Manager", company:"Willow Bridge Property Company", category:"apartment", mgmtCompany:"Willow Bridge",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Crystal+Ganakes+Willow+Bridge",
+   notes:"Regional PM at Willow Bridge Houston. CAM certified. Also covers Marquis portfolio."},
+  {name:"Megan Hartner", title:"Manager, Multi-Family Asset Management", company:"Willow Bridge Property Company", category:"apartment", mgmtCompany:"Willow Bridge",
+   locations:"Greater Houston",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Megan+Hartner+Willow+Bridge",
+   notes:"Multi-Family Asset Manager at Willow Bridge Houston. Direct asset management role — key contact for parking/partnership approvals."},
+
+  // OLYMPUS PROPERTY
+  {name:"Enrique Mendoza", title:"Regional Manager", company:"Olympus Property", category:"apartment", mgmtCompany:"Olympus Property",
+   locations:"Houston, Texas",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Enrique+Mendoza+Olympus+Property+Houston",
+   notes:"Confirmed Regional Manager at Olympus Property Houston. CAM certified. Manages Olympus at Memorial (777 S Mayde Creek Dr) near Energy Corridor — strong target."},
+
+  // VESTA CORPORATION
+  {name:"Vesta Corporation — Regional Contact", title:"Regional Manager", company:"Vesta Corporation", category:"apartment", mgmtCompany:"Vesta Corporation",
+   locations:"55 Fifty at Northwest Crossing (5550 Bingle Rd, Houston TX 77092)",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Vesta+Corporation+property+management+Houston",
+   notes:"Vesta manages 55 Fifty at NW Crossing. Already visited 3/17 — Grant Pickens gave his card. LinkedIn search for Vesta Corp regional contact was limited — approach via Grant Pickens as entry point."},
+
+  // EVOLVE COMPANIES
+  {name:"Evolve Companies — Regional Contact", title:"Regional Manager", company:"Evolve Companies (Private-Evolve)", category:"apartment", mgmtCompany:"Evolve Companies",
+   locations:"Heights West End (4040 Koehler St, Houston TX 77007)",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Evolve+Companies+property+management+Houston+Heights",
+   notes:"Evolve manages Heights West End. Already visited 3/10 — Pollie (purple hair, desk) hands flyers to prospects. LinkedIn search limited — approach via property-level contact Pollie for intro to regional."},
+
+  // LEAF HOLLOW / THE CROSSINGS
+  {name:"The Crossings — Regional Contact", title:"Regional Manager", company:"Leaf Hollow Management", category:"apartment", mgmtCompany:"Leaf Hollow",
+   locations:"The Crossings (4200 Lockfield St) + Leaf Hollow (1760 Campbell Rd), Houston TX 77092",
+   li:"https://www.linkedin.com/search/results/people/?keywords=Leaf+Hollow+Management+Houston+apartments",
+   notes:"Leaf Hollow manages The Crossings. Already visited 3/17 — met Gretel and Edith (both receptive). Near Bingle Crossing corral. Use on-site contact as entry point to regional."},
+];
+
+// ═══════════════════════════════════════════════
+// CONTACTS STATE
+// ═══════════════════════════════════════════════
+let contactFilterType = 'all'; // 'all', 'storage', 'apartment'
+let selectedContactId = null;
+let contactSearchQ = '';
+
+// ═══════════════════════════════════════════════
+// CONTACTS RENDER
+// ═══════════════════════════════════════════════
+function renderContacts(body){
+  let contacts = contactsData.filter((c,i)=>{
+    const typeMatch = contactFilterType==='all' || c.category===contactFilterType || (contactFilterType==='apartment' && c.category==='apartment') || (contactFilterType==='storage' && c.category==='storage');
+    if(!typeMatch) return false;
+    if(!contactSearchQ) return true;
+    const q=contactSearchQ.toLowerCase();
+    return c.name.toLowerCase().includes(q)||c.company.toLowerCase().includes(q)||(c.title||'').toLowerCase().includes(q)||(c.locations||'').toLowerCase().includes(q);
+  });
+
+  const storageCount = contactsData.filter(c=>c.category==='storage').length;
+  const aptCount = contactsData.filter(c=>c.category==='apartment').length;
+
+  let html=`
+  <div class="contact-type-filters">
+    <div class="filter-chip${contactFilterType==='all'?' active':''}" onclick="setContactFilter('all')">All (${contactsData.length})</div>
+    <div class="filter-chip${contactFilterType==='storage'?' active':''}" onclick="setContactFilter('storage')">🏪 Storage (${storageCount})</div>
+    <div class="filter-chip${contactFilterType==='apartment'?' active':''}" onclick="setContactFilter('apartment')">🏠 Apartments (${aptCount})</div>
+  </div>`;
+
+  if(!contacts.length){
+    html+=`<div class="empty-state"><div class="es-icon">🔍</div><p>No contacts match your search.</p></div>`;
+    body.innerHTML=html; return;
+  }
+
+  // Group by company
+  const grouped = {};
+  contacts.forEach((c,i)=>{
+    const realIdx = contactsData.indexOf(c);
+    if(!grouped[c.company]) grouped[c.company]=[];
+    grouped[c.company].push({...c, _i: realIdx});
+  });
+
+  Object.entries(grouped).forEach(([company, members])=>{
+    const cat = members[0].category;
+    html+=`<div class="section-header"><span>${cat==='storage'?'🏪':'🏠'} ${company}</span><span class="section-count">${members.length}</span></div>`;
+    members.forEach(c=>{
+      const isOpen = selectedContactId===c._i;
+      const initials = c.name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+      const avatarClass = cat==='apartment'?'apt':'storage';
+      html+=`
+      <div class="contact-card${isOpen?' selected':''}" id="contact-${c._i}" onclick="toggleContactCard(${c._i})">
+        <div class="contact-card-header">
+          <div class="contact-avatar ${avatarClass}">${initials==='?'||!initials?'👤':initials}</div>
+          <div class="contact-main">
+            <div class="contact-name">${c.name}</div>
+            <div class="contact-title">${c.title}</div>
+            <div class="contact-company">${c.company}</div>
+          </div>
+        </div>
+        <div class="contact-card-badges">
+          <span class="badge ${cat==='storage'?'badge-blue':'badge-green'}">${cat==='storage'?'Storage':'Apartment'}</span>
+          ${c.chain?`<span class="badge badge-gray">${c.chain}</span>`:''}
+        </div>
+        <div class="contact-detail${isOpen?' open':''}">
+          ${c.locations?`<div class="detail-row"><span class="detail-label">📍 Locations</span><span class="detail-val">${c.locations}</span></div>`:''}
+          ${(c.mgmtCompany&&c.category==='apartment')?`<div class="detail-row"><span class="detail-label">🏢 Mgmt Co.</span><span class="detail-val">${c.mgmtCompany}</span></div>`:''}
+          ${c.notes?`<hr class="detail-divider"><div class="detail-row"><span class="detail-label">📝 Notes</span><span class="detail-val" style="font-size:11px;color:var(--text2);">${c.notes}</span></div>`:''}
+          ${c.li?`<button class="contact-li-btn" onclick="openLinkedIn('${c.li}',event)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a66c2"><path d="M19 0H5C2.24 0 0 2.24 0 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5V5c0-2.76-2.24-5-5-5zM7.5 19h-3V9h3v10zm-1.5-11.27c-.97 0-1.75-.79-1.75-1.75S5.03 4.23 6 4.23s1.75.79 1.75 1.75S6.97 7.73 6 7.73zM19.5 19h-3v-5.5c0-1.38-.02-3.16-1.93-3.16-1.93 0-2.23 1.51-2.23 3.06V19h-3V9h2.88v1.36h.04c.4-.76 1.38-1.56 2.84-1.56 3.04 0 3.6 2 3.6 4.59V19z"/></svg>
+            Open LinkedIn Profile
+          </button>`:''}
+        </div>
+      </div>`;
+    });
+  });
+
+  body.innerHTML=html;
+}
+
+function toggleContactCard(id){
+  selectedContactId = selectedContactId===id ? null : id;
+  renderCRM();
+  setTimeout(()=>{const el=document.getElementById(`contact-${id}`);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});},50);
+}
+
+function setContactFilter(type){
+  contactFilterType=type;
+  renderCRM();
+}
+
+function openLinkedIn(url, e){
+  e&&e.stopPropagation();
+  window.open(url,'_blank');
 }
 
 // ═══════════════════════════════════════════════
